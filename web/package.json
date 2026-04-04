@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "node ./scripts/vercel-require-database-url.cjs && prisma generate && prisma migrate deploy && next build",
     "build:check": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",

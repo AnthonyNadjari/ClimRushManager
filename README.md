@@ -41,19 +41,21 @@ Sans base, l’UI affiche une erreur sur les écrans qui lisent l’API.
 
 ## Déployer sur Vercel
 
-Ce dépôt inclut un `vercel.json` à la **racine** : le projet est buildé depuis le dossier `web`.
+L’app Next.js vit dans **`web/`**. Sur Vercel, il faut que le **répertoire racine du projet** soit ce dossier, sinon le build Next et le dossier `.next` ne correspondent pas.
 
-1. Importer le dépôt dans Vercel ; laisser la **racine du dépôt** comme répertoire du projet (ne pas forcer uniquement `web` si vous utilisez ce `vercel.json`).
-2. Dans **Settings → Environment Variables**, ajouter **`DATABASE_URL`** (PostgreSQL avec `sslmode=require` si fournisseur managé).
-3. Premier déploiement : le script `build` exécute `prisma migrate deploy` puis `next build`.
-4. Après le premier déploiement réussi, exécuter le seed une fois (machine locale ou CI) :
+1. **Settings → General → Root Directory** : mettre **`web`** (indispensable).
+2. **Settings → Environment Variables** : ajouter **`DATABASE_URL`** pour **Production** (et **Preview** si vous déployez des PR). Utilisez une URL PostgreSQL accessible depuis Internet, avec `sslmode=require` (Neon, Supabase, etc.). **Sans `DATABASE_URL`, le build échoue** : `npm run build` exécute `prisma migrate deploy` avant `next build`.
+3. Le fichier `web/vercel.json` ne fait que fixer le framework **Next.js** — pas de `outputDirectory` personnalisé (incompatible avec le preset Next sur Vercel).
+4. Après le premier déploiement réussi, exécuter le **seed** une fois (machine locale ou CI) :
 
    ```bash
    cd web
    DATABASE_URL="votre_url" npx prisma db seed
    ```
 
-   Ou ajouter temporairement une étape de build (non recommandé en prod) — le seed est idempotent sur les IDs de démo.
+   Le seed est idempotent sur les IDs de démo.
+
+**Si le build Vercel échoue encore** : ouvrez l’onglet **Build Logs** — erreur fréquente = `DATABASE_URL` absent ou base injoignable (pare-feu / mauvaise URL). En local, reproduire : `cd web && npm run build` avec la même `DATABASE_URL`.
 
 ## Fonctionnalités données réelles
 
