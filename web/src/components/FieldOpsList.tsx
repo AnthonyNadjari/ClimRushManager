@@ -259,6 +259,13 @@ export function FieldOpsList({
                     N° machine
                   </button>
                 ) : null}
+                {task.status === "in_progress" ? (
+                  <CompleteTaskButton
+                    taskId={task.id}
+                    label={mode === "livraison" ? "Marquer livré" : "Marquer récupéré"}
+                    onDone={onRefresh}
+                  />
+                ) : null}
               </div>
             </li>
           );
@@ -464,6 +471,58 @@ function UpsellFormBody({
         {saving ? "…" : "Enregistrer en base"}
       </button>
     </>
+  );
+}
+
+function CompleteTaskButton({
+  taskId,
+  label,
+  onDone,
+}: {
+  taskId: string;
+  label: string;
+  onDone: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={() => {
+        void (async () => {
+          setBusy(true);
+          try {
+            await apiJson(`/api/field-tasks/${taskId}`, {
+              method: "PATCH",
+              body: JSON.stringify({
+                status: "done",
+                timeNote: new Date().toLocaleTimeString("fr-FR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              }),
+            });
+            await apiJson("/api/activity", {
+              method: "POST",
+              body: JSON.stringify({
+                kind: "ok",
+                title: label,
+                subtitle: `Tâche ${taskId}`,
+                time: "À l’instant",
+              }),
+            });
+            onDone();
+          } catch (e) {
+            alert(e instanceof Error ? e.message : "Erreur");
+          } finally {
+            setBusy(false);
+          }
+        })();
+      }}
+      className="inline-flex min-h-[48px] items-center justify-center rounded-xl border-2 border-zinc-800 bg-white px-4 text-sm font-bold text-zinc-900 disabled:opacity-60"
+    >
+      {busy ? "…" : label}
+    </button>
   );
 }
 
