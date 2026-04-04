@@ -10,7 +10,7 @@ const links = [
   {
     href: "/reprises",
     title: "Reprises",
-    desc: "Terrain — scan, photos, validation",
+    desc: "Terrain — n° machine, photos, validation",
     color: "from-amber-500 to-orange-600",
   },
   {
