@@ -28,8 +28,8 @@ export default function AnalyticsPage() {
   const gradient = `conic-gradient(${parts.join(", ")})`;
 
   return (
-    <div className="flex flex-1 flex-col px-4 pb-2">
-      <header className="flex flex-wrap items-center justify-between gap-2 pt-3">
+    <div className="flex flex-1 flex-col pb-2">
+      <header className="flex flex-wrap items-center justify-between gap-2 pt-3 lg:pt-0">
         <div>
           <h1 className="font-serif text-2xl font-bold text-zinc-900">
             Analytics
@@ -41,7 +41,7 @@ export default function AnalyticsPage() {
         </span>
       </header>
 
-      <section className="mt-4 grid grid-cols-2 gap-3">
+      <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <StatCard
           label="CA saison"
           value={`${KPI.caSaisonHt.toLocaleString("fr-FR")} € HT`}
@@ -63,30 +63,31 @@ export default function AnalyticsPage() {
         />
       </section>
 
-      <div className="mt-6 flex flex-col items-center">
-        <div
-          className="h-44 w-44 rounded-full shadow-inner ring-4 ring-white"
-          style={{ backgroundImage: gradient }}
-        />
-        <p className="mt-3 text-center text-sm font-medium text-zinc-600">
-          {KPI.stockTotal} unités — répartition
-        </p>
+      <div className="mt-6 flex flex-col items-center lg:mt-8 lg:flex-row lg:items-start lg:justify-center lg:gap-16">
+        <div className="flex flex-col items-center">
+          <div
+            className="h-44 w-44 shrink-0 rounded-full shadow-inner ring-4 ring-white"
+            style={{ backgroundImage: gradient }}
+          />
+          <p className="mt-3 text-center text-sm font-medium text-zinc-600">
+            {KPI.stockTotal} unités — répartition
+          </p>
+        </div>
+        <div className="mt-6 w-full max-w-md space-y-4 lg:mt-0">
+          <ProgressRow
+            label="Objectif financier"
+            pct={goalPct}
+            hint={`${KPI.caSaisonHt.toLocaleString("fr-FR")} / ${KPI.objectifCaHt.toLocaleString("fr-FR")} € HT`}
+          />
+          <ProgressRow
+            label="Amortissement parc"
+            pct={Math.round(amortPct)}
+            hint={`${KPI.amorties} machines amorties`}
+          />
+        </div>
       </div>
 
-      <div className="mt-6 space-y-4">
-        <ProgressRow
-          label="Objectif financier"
-          pct={goalPct}
-          hint={`${KPI.caSaisonHt.toLocaleString("fr-FR")} / ${KPI.objectifCaHt.toLocaleString("fr-FR")} € HT`}
-        />
-        <ProgressRow
-          label="Amortissement parc"
-          pct={Math.round(amortPct)}
-          hint={`${KPI.amorties} machines amorties`}
-        />
-      </div>
-
-      <section className="mt-6 rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm lg:mt-8">
         <h2 className="font-semibold text-zinc-900">Revenus par offre</h2>
         <table className="mt-3 w-full text-sm">
           <tbody>

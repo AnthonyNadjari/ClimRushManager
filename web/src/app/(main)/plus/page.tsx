@@ -35,15 +35,18 @@ const links = [
 
 export default function PlusPage() {
   return (
-    <div className="flex flex-1 flex-col px-4 pb-2">
-      <header className="pt-3">
-        <h1 className="font-serif text-2xl font-bold text-zinc-900">Plus</h1>
-        <p className="text-sm text-zinc-500">
-          Accès rapide — livraisons restent dans la barre du bas
+    <div className="flex flex-1 flex-col pb-2">
+      <header className="pt-3 lg:pt-0">
+        <h1 className="font-serif text-2xl font-bold text-zinc-900 lg:text-3xl">
+          Plus
+        </h1>
+        <p className="text-sm text-zinc-500 lg:text-base">
+          Accès rapide — sur téléphone, utilisez la barre du bas ; sur ordinateur,
+          le menu à gauche.
         </p>
       </header>
 
-      <ul className="mt-5 flex flex-col gap-3">
+      <ul className="mt-5 flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
         {links.map((l) => (
           <li key={l.href}>
             <Link

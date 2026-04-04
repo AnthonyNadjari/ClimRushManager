@@ -7,11 +7,14 @@ import { machineQrPayload } from "@/lib/qr-payload";
 type Props = {
   id: string;
   model: string;
-  /** Plus grand sur écran admin ; impression utilise la taille naturelle */
-  size?: number;
 };
 
-export function MachineQrTile({ id, model, size = 200 }: Props) {
+/** Génération haute résolution, affichage contenu dans une boîte fixe (évite les chevauchements en grille). */
+const RENDER_SIZE = 240;
+const DISPLAY_CLASS =
+  "aspect-square w-full max-w-[148px] sm:max-w-[160px] lg:max-w-[168px]";
+
+export function MachineQrTile({ id, model }: Props) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const payload = machineQrPayload(id);
@@ -19,7 +22,7 @@ export function MachineQrTile({ id, model, size = 200 }: Props) {
   useEffect(() => {
     let cancelled = false;
     QRCode.toDataURL(payload, {
-      width: size,
+      width: RENDER_SIZE,
       margin: 2,
       errorCorrectionLevel: "M",
       color: { dark: "#18181b", light: "#ffffff" },
@@ -39,7 +42,7 @@ export function MachineQrTile({ id, model, size = 200 }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [payload, size]);
+  }, [payload]);
 
   function downloadPng() {
     if (!dataUrl) return;
@@ -50,37 +53,40 @@ export function MachineQrTile({ id, model, size = 200 }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm print:break-inside-avoid print:border-zinc-300 print:shadow-none">
-      <div className="rounded-xl bg-white p-2 ring-1 ring-zinc-100 print:ring-0">
+    <div className="flex min-h-0 min-w-0 flex-col items-center rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4 print:break-inside-avoid print:border-zinc-300 print:shadow-none">
+      <div
+        className={`relative shrink-0 overflow-hidden rounded-xl bg-white p-1.5 ring-1 ring-zinc-100 print:ring-0 ${DISPLAY_CLASS}`}
+      >
         {dataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- data URL générée par qrcode
           <img
             src={dataUrl}
             alt={`QR machine ${id}`}
-            width={size}
-            height={size}
-            className="max-h-[min(200px,80vw)] max-w-[min(200px,80vw)] object-contain print:max-h-[160px] print:max-w-[160px]"
-            style={{ width: size, height: size }}
+            className="h-full w-full object-contain"
           />
         ) : (
           <div
-            className="flex items-center justify-center bg-zinc-100 text-sm text-zinc-500"
-            style={{ width: size, height: size }}
+            className={`flex items-center justify-center bg-zinc-50 text-center text-xs text-zinc-500 ${DISPLAY_CLASS}`}
           >
             {err ?? "…"}
           </div>
         )}
       </div>
-      <p className="mt-2 font-mono text-lg font-bold text-zinc-900">#{id}</p>
-      <p className="max-w-[220px] text-center text-xs text-zinc-600">{model}</p>
-      <p className="mt-1 hidden max-w-[220px] truncate text-center font-mono text-[10px] text-zinc-400 print:block">
+
+      <p className="mt-3 w-full truncate text-center font-mono text-base font-bold text-zinc-900">
+        #{id}
+      </p>
+      <p className="mt-0.5 line-clamp-2 w-full max-w-[200px] text-center text-xs leading-snug text-zinc-600">
+        {model}
+      </p>
+      <p className="mt-1 hidden w-full max-w-[200px] truncate text-center font-mono text-[10px] text-zinc-400 print:block">
         {payload}
       </p>
       <button
         type="button"
         onClick={downloadPng}
         disabled={!dataUrl}
-        className="mt-3 min-h-11 w-full rounded-xl bg-zinc-900 text-sm font-semibold text-white print:hidden disabled:opacity-40"
+        className="mt-3 w-full min-w-0 max-w-[200px] rounded-xl bg-zinc-900 py-2.5 text-sm font-semibold text-white print:hidden disabled:opacity-40"
       >
         Télécharger PNG
       </button>

@@ -38,8 +38,8 @@ export default function DashboardPage() {
   const caDisplay = KPI.caJourHt;
 
   return (
-    <div className="flex flex-1 flex-col px-4 pb-2">
-      <header className="flex items-start justify-between pt-3">
+    <div className="flex flex-1 flex-col pb-2">
+      <header className="flex items-start justify-between pt-3 lg:pt-0">
         <div>
           <h1 className="font-serif text-2xl font-bold text-zinc-900">
             Dashboard
@@ -56,7 +56,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <section className="mt-4 grid grid-cols-2 gap-3">
+      <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <KpiCard
           tone="blue"
           label="CA du jour"

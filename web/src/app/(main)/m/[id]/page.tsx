@@ -19,7 +19,7 @@ export default async function MachinePublicPage({ params }: Props) {
   if (!m) notFound();
 
   return (
-    <div className="flex flex-1 flex-col px-4 pb-6 pt-4">
+    <div className="flex flex-1 flex-col pb-6 pt-4">
       <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
         Machine
       </p>

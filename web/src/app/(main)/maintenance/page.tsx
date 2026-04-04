@@ -5,7 +5,7 @@ import type { MaintenanceRow } from "@/lib/types";
 
 export default function MaintenancePage() {
   return (
-    <div className="flex flex-1 flex-col px-4 pb-2">
+    <div className="flex flex-1 flex-col pb-2">
       <header className="pt-3">
         <h1 className="font-serif text-2xl font-bold text-zinc-900">
           Maintenance

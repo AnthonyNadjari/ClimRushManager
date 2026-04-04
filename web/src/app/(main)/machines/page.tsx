@@ -44,7 +44,7 @@ export default function MachinesPage() {
   const amortPct = (KPI.amorties / KPI.stockTotal) * 100;
 
   return (
-    <div className="flex flex-1 flex-col px-4 pb-2">
+    <div className="flex flex-1 flex-col pb-2">
       <header className="flex items-start justify-between gap-2 pt-3">
         <div>
           <h1 className="font-serif text-2xl font-bold text-zinc-900">

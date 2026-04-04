@@ -16,10 +16,10 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-zinc-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md print:hidden"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-zinc-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md print:hidden lg:hidden"
       aria-label="Navigation principale"
     >
-      <div className="mx-auto flex max-w-lg justify-around px-1 pt-1">
+      <div className="mx-auto flex max-w-lg justify-around px-1 pt-1 sm:max-w-none">
         {items.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/"
