@@ -27,6 +27,7 @@ export default async function MachinePublicPage({ params }: Props) {
       <p className="mt-1 text-lg text-zinc-700">{m.model}</p>
 
       <div className="mt-6 space-y-3 rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm">
+        <Row label="Lot" value={m.lot} />
         <Row label="Statut" value={statusFr[m.status] ?? m.status} />
         <Row
           label="Client"

@@ -112,6 +112,7 @@ export default function MachinesPage() {
                   ? `${m.clientName} — Retour ${m.returnDate ?? "—"}`
                   : "Disponible — Aucun client"}
               </p>
+              <p className="mt-0.5 text-xs text-zinc-500">Lot : {m.lot}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-bold ${statusStyle[m.status]}`}

@@ -7,6 +7,7 @@ import { machineQrPayload } from "@/lib/qr-payload";
 type Props = {
   id: string;
   model: string;
+  lot?: string;
 };
 
 /** Génération haute résolution, affichage contenu dans une boîte fixe (évite les chevauchements en grille). */
@@ -14,7 +15,7 @@ const RENDER_SIZE = 240;
 const DISPLAY_CLASS =
   "aspect-square w-full max-w-[148px] sm:max-w-[160px] lg:max-w-[168px]";
 
-export function MachineQrTile({ id, model }: Props) {
+export function MachineQrTile({ id, model, lot }: Props) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const payload = machineQrPayload(id);
@@ -79,6 +80,11 @@ export function MachineQrTile({ id, model }: Props) {
       <p className="mt-0.5 line-clamp-2 w-full max-w-[200px] text-center text-xs leading-snug text-zinc-600">
         {model}
       </p>
+      {lot ? (
+        <p className="mt-1 line-clamp-2 max-w-[200px] text-center text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+          {lot}
+        </p>
+      ) : null}
       <p className="mt-1 hidden w-full max-w-[200px] truncate text-center font-mono text-[10px] text-zinc-400 print:block">
         {payload}
       </p>

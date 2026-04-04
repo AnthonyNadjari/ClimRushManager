@@ -11,6 +11,7 @@ import { amortizationLabel, REVENUE_PER_DAY } from "./amortization";
 function mkMachine(
   id: string,
   model: string,
+  lot: string,
   status: Machine["status"],
   clientName: string | null,
   returnDate: string | null,
@@ -31,6 +32,7 @@ function mkMachine(
   return {
     id,
     model,
+    lot,
     status,
     clientName,
     returnDate,
@@ -162,6 +164,7 @@ export const MACHINES: Machine[] = [
   mkMachine(
     "12",
     "12 000 BTU Monobloc",
+    "Tournée Paris centre",
     "LOUE",
     "Rés. du Marais",
     "31/08/2026",
@@ -173,6 +176,7 @@ export const MACHINES: Machine[] = [
   mkMachine(
     "47",
     "12 000 BTU Monobloc",
+    "Atelier SAV",
     "SAV",
     null,
     null,
@@ -184,6 +188,7 @@ export const MACHINES: Machine[] = [
   mkMachine(
     "83",
     "9 000 BTU Split",
+    "Atelier SAV",
     "SAV",
     null,
     null,
@@ -195,6 +200,7 @@ export const MACHINES: Machine[] = [
   mkMachine(
     "124",
     "12 000 BTU Monobloc",
+    "Atelier SAV",
     "SAV",
     null,
     null,
@@ -206,6 +212,7 @@ export const MACHINES: Machine[] = [
   mkMachine(
     "198",
     "12 000 BTU Monobloc",
+    "Stock neuf — IDF",
     "DISPO",
     null,
     null,
@@ -217,6 +224,7 @@ export const MACHINES: Machine[] = [
   mkMachine(
     "201",
     "12 000 BTU Monobloc",
+    "Tournée Hauts-de-Seine",
     "LIV",
     "OVELIA",
     "05/04/2026",
@@ -228,6 +236,7 @@ export const MACHINES: Machine[] = [
   mkMachine(
     "302",
     "9 000 BTU Split",
+    "Stock neuf — IDF",
     "DISPO",
     null,
     null,

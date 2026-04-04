@@ -12,6 +12,8 @@ export type ClientStatus = "en_cours" | "a_venir" | "inactif";
 export interface Machine {
   id: string;
   model: string;
+  /** Regroupement logique (tournée, chantier, achat…) — pour filtres / planches / ZIP. Un QR = toujours une machine. */
+  lot: string;
   status: MachineStatus;
   clientName: string | null;
   returnDate: string | null;
