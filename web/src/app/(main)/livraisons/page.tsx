@@ -1,18 +1,58 @@
-import { DELIVERIES, KPI } from "@/lib/data";
+"use client";
+
+import useSWR from "swr";
 import { FieldOpsList } from "@/components/FieldOpsList";
+import type { FieldTask } from "@/lib/types";
+
+async function fetcher<T>(url: string): Promise<T> {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
 
 export default function LivraisonsPage() {
-  const done = DELIVERIES.filter((t) => t.status === "done").length;
-  const prog = DELIVERIES.filter((t) => t.status === "in_progress").length;
-  const pend = DELIVERIES.filter((t) => t.status === "pending").length;
+  const { data: tasks, error, mutate, isLoading } = useSWR<FieldTask[]>(
+    "/api/field-tasks?mode=livraison",
+    fetcher,
+  );
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+        <p className="font-semibold">Base de données inaccessible</p>
+        <p className="mt-1">
+          Définissez <code className="rounded bg-white/80 px-1">DATABASE_URL</code>{" "}
+          (PostgreSQL), puis{" "}
+          <code className="rounded bg-white/80 px-1">
+            npx prisma migrate deploy
+          </code>{" "}
+          et{" "}
+          <code className="rounded bg-white/80 px-1">npx prisma db seed</code>.
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoading || !tasks) {
+    return (
+      <div className="animate-pulse py-8 text-center text-sm text-zinc-500">
+        Chargement des livraisons…
+      </div>
+    );
+  }
+
+  const done = tasks.filter((t) => t.status === "done").length;
+  const prog = tasks.filter((t) => t.status === "in_progress").length;
+  const pend = tasks.filter((t) => t.status === "pending").length;
 
   return (
     <FieldOpsList
       mode="livraison"
       title="Livraisons"
-      subtitle={`Aujourd’hui — ${KPI.livraisonsTotal} planifiées (${done} livrées · ${prog} en cours · ${pend} restantes)`}
-      tasks={DELIVERIES}
-      routeBanner={{ stops: 8, duration: "2 h 30" }}
+      subtitle={`Aujourd’hui — ${tasks.length} planifiées (${done} livrées · ${prog} en cours · ${pend} restantes)`}
+      tasks={tasks}
+      onRefresh={() => void mutate()}
+      enableRouteOptimize
     />
   );
 }

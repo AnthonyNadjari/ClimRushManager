@@ -2,9 +2,9 @@ import Link from "next/link";
 
 const links = [
   {
-    href: "/codes-qr",
-    title: "Codes QR",
-    desc: "Générer & imprimer les étiquettes machines",
+    href: "/machines",
+    title: "Inventaire",
+    desc: "Parc par n° d’unité, statuts et lots",
     color: "from-slate-600 to-zinc-800",
   },
   {
@@ -63,10 +63,18 @@ export default function PlusPage() {
       </ul>
 
       <section className="mt-6 rounded-2xl border border-zinc-100 bg-white p-4 text-sm text-zinc-700 shadow-sm">
-        <h2 className="font-semibold text-zinc-900">SMS automatiques (V1.1)</h2>
-        <ul className="mt-2 list-disc space-y-1 pl-4">
+        <h2 className="font-semibold text-zinc-900">SMS (V1.1)</h2>
+        <p className="mt-2 text-zinc-600">
+          Aujourd’hui : boutons <strong>SMS (brouillon)</strong> qui ouvrent
+          l’app Messages du téléphone avec un texte prérempli — vous validez
+          l’envoi à la main. Pas de service « gratuit » fiable pour envoyer des
+          SMS en masse sans API ; en production, prévoir un fournisseur
+          (Twilio, Vonage, Brevo SMS, etc.) pour les rappels automatiques.
+        </p>
+        <ul className="mt-3 list-disc space-y-1 pl-4">
           <li>
-            <strong>J-7</strong> — rachat valeur résiduelle (Twilio / Brevo)
+            <strong>J-7</strong> — rachat valeur résiduelle (à automatiser via
+            API)
           </li>
           <li>
             <strong>J-5</strong> — extension avec discount fidélité
@@ -75,10 +83,6 @@ export default function PlusPage() {
             <strong>J-0</strong> — livraison / reprise planifiée
           </li>
         </ul>
-        <p className="mt-3 text-xs text-zinc-500">
-          Phase 1 : intégrations à brancher — cette app est une UI prête pour
-          API.
-        </p>
       </section>
     </div>
   );

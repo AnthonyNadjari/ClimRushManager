@@ -1,25 +1,68 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import useSWR from "swr";
 import { june2026Calendar } from "@/lib/data";
+import { apiJson } from "@/lib/api-client";
 
 const weekDays = ["L", "M", "M", "J", "V", "S", "D"];
 
 const PLANNING_YEAR = 2026;
-const PLANNING_MONTH = 6; // juin (1–12)
+const PLANNING_MONTH = 6;
 
 function toIsoDate(day: number) {
   const d = new Date(Date.UTC(PLANNING_YEAR, PLANNING_MONTH - 1, day));
   return d.toISOString().slice(0, 10);
 }
 
-/** Juin 2026 commence un lundi → offset 0 */
+type ReservationRow = {
+  id: string;
+  date: string;
+  client: string;
+  machines: number;
+  type: string;
+};
+
+async function fetcher<T>(url: string): Promise<T> {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export default function PlanningPage() {
+  const resKey = `/api/reservations?from=${PLANNING_YEAR}-06-01&to=${PLANNING_YEAR}-06-30`;
+  const { data: reservations, error, mutate, isLoading } = useSWR<
+    ReservationRow[]
+  >(resKey, fetcher);
+
   const [view, setView] = useState<"month" | "week">("month");
   const [reserveOpen, setReserveOpen] = useState(false);
   const [prefillDay, setPrefillDay] = useState<number | null>(null);
+  const [portalReady, setPortalReady] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => setPortalReady(true), []);
+
+  useEffect(() => {
+    if (!reserveOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [reserveOpen]);
 
   const days = useMemo(() => june2026Calendar(), []);
+
+  const resaByDay = useMemo(() => {
+    const m: Record<number, number> = {};
+    for (const r of reservations ?? []) {
+      const day = parseInt(r.date.slice(8, 10), 10);
+      if (!Number.isNaN(day)) m[day] = (m[day] ?? 0) + 1;
+    }
+    return m;
+  }, [reservations]);
 
   const [form, setForm] = useState({
     date: toIsoDate(1),
@@ -48,17 +91,44 @@ export default function PlanningPage() {
     setPrefillDay(null);
   }
 
-  function submitReserve(e: React.FormEvent) {
+  async function submitReserve(e: React.FormEvent) {
     e.preventDefault();
     const n = Math.max(1, parseInt(form.machines, 10) || 1);
-    alert(
-      `Réservation enregistrée (démo — pas encore sauvegardée en base)\n\n` +
-        `Date : ${form.date}\n` +
-        `Client : ${form.client.trim() || "—"}\n` +
-        `Machines : ${n}\n` +
-        `Formule : ${form.type}`,
+    setSaving(true);
+    try {
+      await apiJson("/api/reservations", {
+        method: "POST",
+        body: JSON.stringify({
+          date: form.date,
+          client: form.client.trim(),
+          machines: n,
+          type: form.type,
+        }),
+      });
+      await apiJson("/api/activity", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: "ok",
+          title: "Réservation",
+          subtitle: `${form.client.trim() || "Client"} — ${n} mach. — ${form.type} — ${form.date}`,
+          time: "À l’instant",
+        }),
+      });
+      void mutate();
+      closeReserve();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+        <p className="font-semibold">Base de données inaccessible</p>
+      </div>
     );
-    closeReserve();
   }
 
   return (
@@ -68,7 +138,10 @@ export default function PlanningPage() {
           <h1 className="font-serif text-2xl font-bold text-zinc-900">
             Planning
           </h1>
-          <p className="text-sm text-zinc-500">Juin 2026</p>
+          <p className="text-sm text-zinc-500">
+            Juin 2026
+            {isLoading ? " — chargement réservations…" : null}
+          </p>
         </div>
         <button
           type="button"
@@ -116,6 +189,11 @@ export default function PlanningPage() {
                 className="flex aspect-square flex-col items-center justify-start rounded-xl bg-white p-1 text-sm font-medium shadow-sm ring-1 ring-zinc-100 transition-colors hover:bg-zinc-50 hover:ring-zinc-200 active:bg-zinc-100"
               >
                 <span>{meta.day}</span>
+                {resaByDay[meta.day] ? (
+                  <span className="mt-0.5 text-[9px] font-semibold text-blue-600">
+                    {resaByDay[meta.day]} résa
+                  </span>
+                ) : null}
                 <span className="mt-1 flex flex-wrap justify-center gap-0.5">
                   <Dot color="bg-red-500" title="Louées" />
                   <Dot color="bg-emerald-500" title="Dispo" />
@@ -128,8 +206,8 @@ export default function PlanningPage() {
         </>
       ) : (
         <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-zinc-600 shadow-sm ring-1 ring-zinc-100">
-          Vue semaine : même grille compacte sur 7 jours (démo — données
-          agrégées comme la vue mois).
+          Vue semaine : à agréger comme la vue mois (données calendrier
+          indicatives).
         </div>
       )}
 
@@ -154,112 +232,117 @@ export default function PlanningPage() {
           </li>
         </ul>
         <p className="mt-3 text-xs text-zinc-500">
-          Astuce : cliquer un jour ouvre aussi la réservation avec la date
-          préremplie.
+          Les réservations enregistrées apparaissent en bleu sur le jour (base
+          PostgreSQL).
         </p>
       </div>
 
-      {reserveOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-          role="dialog"
-          aria-modal
-          aria-labelledby="reserve-title"
-        >
-          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-              <h2 id="reserve-title" className="font-serif text-lg font-bold">
-                Nouvelle réservation
-              </h2>
-              <button
-                type="button"
-                onClick={closeReserve}
-                className="rounded-full px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-100"
+      {reserveOpen && portalReady
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+              role="dialog"
+              aria-modal
+              aria-labelledby="reserve-title"
+              onClick={closeReserve}
+            >
+              <div
+                className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl"
+                onClick={(e) => e.stopPropagation()}
               >
-                Fermer
-              </button>
-            </div>
-            <form onSubmit={submitReserve} className="space-y-4 p-4">
-              {prefillDay != null ? (
-                <p className="text-xs text-zinc-500">
-                  Jour sélectionné : <strong>{prefillDay} juin 2026</strong>
-                </p>
-              ) : null}
-              <label className="block">
-                <span className="text-xs font-medium text-zinc-500">
-                  Date de début
-                </span>
-                <input
-                  type="date"
-                  required
-                  value={form.date}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, date: e.target.value }))
-                  }
-                  className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-zinc-500">
-                  Client (raison sociale ou nom)
-                </span>
-                <input
-                  type="text"
-                  value={form.client}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, client: e.target.value }))
-                  }
-                  placeholder="ex. Résidence du Marais"
-                  className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-zinc-500">
-                  Nombre de machines
-                </span>
-                <input
-                  type="number"
-                  min={1}
-                  value={form.machines}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, machines: e.target.value }))
-                  }
-                  className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium text-zinc-500">
-                  Formule
-                </span>
-                <select
-                  value={form.type}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      type: e.target.value as typeof form.type,
-                    }))
-                  }
-                  className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-3 text-base outline-none focus:border-[var(--cr-blue)]"
-                >
-                  <option value="hebdo">Hebdomadaire</option>
-                  <option value="mensuel">Mensuel</option>
-                  <option value="saison">Saison</option>
-                </select>
-              </label>
-              <p className="text-xs text-zinc-500">
-                Données de démonstration : la réservation n’est pas enregistrée
-                côté serveur pour l’instant.
-              </p>
-              <button
-                type="submit"
-                className="min-h-12 w-full rounded-xl bg-[var(--cr-blue)] text-sm font-semibold text-white"
-              >
-                Enregistrer (démo)
-              </button>
-            </form>
-          </div>
-        </div>
-      ) : null}
+                <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+                  <h2 id="reserve-title" className="font-serif text-lg font-bold">
+                    Nouvelle réservation
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={closeReserve}
+                    className="rounded-full px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-100"
+                  >
+                    Fermer
+                  </button>
+                </div>
+                <form onSubmit={submitReserve} className="space-y-4 p-4">
+                  {prefillDay != null ? (
+                    <p className="text-xs text-zinc-500">
+                      Jour sélectionné :{" "}
+                      <strong>{prefillDay} juin 2026</strong>
+                    </p>
+                  ) : null}
+                  <label className="block">
+                    <span className="text-xs font-medium text-zinc-500">
+                      Date de début
+                    </span>
+                    <input
+                      type="date"
+                      required
+                      value={form.date}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, date: e.target.value }))
+                      }
+                      className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-zinc-500">
+                      Client (raison sociale ou nom)
+                    </span>
+                    <input
+                      type="text"
+                      value={form.client}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, client: e.target.value }))
+                      }
+                      placeholder="ex. Résidence du Marais"
+                      className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-zinc-500">
+                      Nombre de machines
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.machines}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, machines: e.target.value }))
+                      }
+                      className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-zinc-500">
+                      Formule
+                    </span>
+                    <select
+                      value={form.type}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          type: e.target.value as typeof form.type,
+                        }))
+                      }
+                      className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                    >
+                      <option value="hebdo">Hebdomadaire</option>
+                      <option value="mensuel">Mensuel</option>
+                      <option value="saison">Saison</option>
+                    </select>
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="min-h-12 w-full rounded-xl bg-[var(--cr-blue)] text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {saving ? "…" : "Enregistrer en base"}
+                  </button>
+                </form>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getMachineById } from "@/lib/machine-lookup";
+import { prisma } from "@/lib/db";
+import { serializeMachine } from "@/lib/serializers";
+
+export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -14,9 +17,10 @@ const statusFr: Record<string, string> = {
 
 export default async function MachinePublicPage({ params }: Props) {
   const { id: raw } = await params;
-  const id = decodeURIComponent(raw);
-  const m = getMachineById(id);
-  if (!m) notFound();
+  const id = decodeURIComponent(raw).replace(/^#/, "").trim();
+  const row = await prisma.machine.findUnique({ where: { id } });
+  if (!row) notFound();
+  const m = serializeMachine(row);
 
   return (
     <div className="flex flex-1 flex-col pb-6 pt-4">
@@ -29,16 +33,13 @@ export default async function MachinePublicPage({ params }: Props) {
       <div className="mt-6 space-y-3 rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm">
         <Row label="Lot" value={m.lot} />
         <Row label="Statut" value={statusFr[m.status] ?? m.status} />
-        <Row
-          label="Client"
-          value={m.clientName ?? "—"}
-        />
+        <Row label="Client" value={m.clientName ?? "—"} />
         <Row label="Retour prévu" value={m.returnDate ?? "—"} />
         <Row label="Amortissement" value={m.amortLabel} />
       </div>
 
       <p className="mt-6 text-center text-sm text-zinc-500">
-        Fiche ouverte depuis le QR — à connecter à votre API plus tard.
+        Fiche machine — données PostgreSQL (Prisma).
       </p>
 
       <Link

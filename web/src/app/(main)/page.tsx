@@ -1,8 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ACTIVITY, KPI } from "@/lib/data";
+import useSWR from "swr";
 import type { ActivityItem } from "@/lib/types";
+
+type Kpi = {
+  caJourHt: number;
+  caJourRentals: number;
+  dispo: number;
+  stockTotal: number;
+  louees: number;
+  livraisonsTotal: number;
+  livraisonsRestantes: number;
+  reprises: number;
+  sav: number;
+  amorties: number;
+};
+
+type DashboardPayload = { kpi: Kpi; activity: ActivityItem[] };
 
 function formatDate(d: Date) {
   return d.toLocaleDateString("fr-FR", {
@@ -13,29 +27,40 @@ function formatDate(d: Date) {
   });
 }
 
+async function fetcher<T>(url: string): Promise<T> {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export default function DashboardPage() {
-  const [tick, setTick] = useState(0);
+  const { data, error, isLoading } = useSWR<DashboardPayload>("/api/dashboard", fetcher, {
+    refreshInterval: 20_000,
+  });
 
-  useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 15_000);
-    return () => clearInterval(id);
-  }, []);
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+        <p className="font-semibold">Impossible de charger le dashboard</p>
+        <p className="mt-1">
+          Configurez PostgreSQL (<code className="rounded bg-white/80 px-1">DATABASE_URL</code>)
+          et exécutez les migrations + seed.
+        </p>
+      </div>
+    );
+  }
 
-  const feed = useMemo((): ActivityItem[] => {
-    if (tick === 0) return ACTIVITY;
-    return [
-      {
-        id: `live-${tick}`,
-        kind: "ok" as const,
-        title: "Rafraîchissement",
-        subtitle: "KPI synchronisés (démo temps réel)",
-        time: "À l’instant",
-      },
-      ...ACTIVITY,
-    ].slice(0, 8);
-  }, [tick]);
+  if (isLoading || !data) {
+    return (
+      <div className="animate-pulse py-8 text-center text-sm text-zinc-500">
+        Chargement…
+      </div>
+    );
+  }
 
-  const caDisplay = KPI.caJourHt;
+  const KPI = data.kpi;
+  const occ =
+    KPI.stockTotal > 0 ? Math.round((KPI.louees / KPI.stockTotal) * 100) : 0;
 
   return (
     <div className="flex flex-1 flex-col pb-2">
@@ -59,8 +84,8 @@ export default function DashboardPage() {
       <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <KpiCard
           tone="blue"
-          label="CA du jour"
-          value={`${caDisplay.toLocaleString("fr-FR")} €`}
+          label="CA du jour (est.)"
+          value={`${KPI.caJourHt.toLocaleString("fr-FR")} €`}
           hint={`+${KPI.caJourRentals} loc.`}
         />
         <KpiCard
@@ -73,7 +98,7 @@ export default function DashboardPage() {
           tone="orange"
           label="Louées"
           value={`${KPI.louees}`}
-          hint={`${Math.round((KPI.louees / KPI.stockTotal) * 100)} % occ.`}
+          hint={`${occ} % occ.`}
         />
         <KpiCard
           tone="red"
@@ -100,7 +125,7 @@ export default function DashboardPage() {
           FIL D’ACTUALITÉ
         </h2>
         <ul className="mt-3 space-y-3">
-          {feed.map((item) => (
+          {data.activity.map((item) => (
             <li
               key={item.id}
               className="flex gap-3 rounded-2xl border border-zinc-100 bg-white p-3 shadow-sm"

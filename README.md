@@ -1,31 +1,51 @@
 # ClimRush Manager
 
-Application web **mobile-first** (iPhone en priorité) pour la gestion opérationnelle ClimRush : dashboard, parc machines, planning, **livraisons**, **reprises**, clients, maintenance, analytics. Données de démo en mémoire (pas de backend dans cette version).
+Application **Next.js** mobile-first : dashboard, parc machines (PostgreSQL), planning avec réservations persistées, livraisons / reprises, clients, maintenance, analytics.
+
+## Prérequis production
+
+- **PostgreSQL** (ex. [Neon](https://neon.tech), Supabase, RDS).
+- Variable **`DATABASE_URL`** (voir `web/.env.example`).
 
 ## Démarrer en local
 
 ```bash
 cd web
+cp .env.example .env
+# Éditer .env : DATABASE_URL=postgresql://...
+
 npm install
+npx prisma migrate deploy
+npx prisma db seed
 npm run dev
 ```
 
 Ouvrir [http://localhost:3000](http://localhost:3000).
 
+Sans base, l’UI affiche une erreur sur les écrans qui lisent l’API.
+
 ## Déployer sur Vercel
 
-1. Pousser ce dépôt sur GitHub / GitLab / Bitbucket.
-2. Dans [Vercel](https://vercel.com) : **Add New Project** → importer le dépôt.
-3. Définir **Root Directory** sur `web` (important : le projet Next.js est dans le sous-dossier `web`).
-4. Framework détecté : Next.js — lancer le déploiement.
+Ce dépôt inclut un `vercel.json` à la **racine** : le projet est buildé depuis le dossier `web`.
 
-Alternative en CLI (depuis la racine du dépôt) :
+1. Importer le dépôt dans Vercel ; laisser la **racine du dépôt** comme répertoire du projet (ne pas forcer uniquement `web` si vous utilisez ce `vercel.json`).
+2. Dans **Settings → Environment Variables**, ajouter **`DATABASE_URL`** (PostgreSQL avec `sslmode=require` si fournisseur managé).
+3. Premier déploiement : le script `build` exécute `prisma migrate deploy` puis `next build`.
+4. Après le premier déploiement réussi, exécuter le seed une fois (machine locale ou CI) :
 
-```bash
-cd web
-npx vercel
-```
+   ```bash
+   cd web
+   DATABASE_URL="votre_url" npx prisma db seed
+   ```
 
-## Cahier des charges
+   Ou ajouter temporairement une étape de build (non recommandé en prod) — le seed est idempotent sur les IDs de démo.
 
-Basé sur la V1.1 (avril 2026) : codes couleur universels, composant terrain partagé livraisons/reprises, scanner QR (`html5-qrcode` + saisie manuelle), export CSV clients, jauge d’amortissement, rappels SMS (Twilio/Brevo à brancher en phase 2).
+## Fonctionnalités données réelles
+
+- **CRUD** via routes `/api/*` : machines, clients, tâches terrain, maintenance, réservations, fil d’activité.
+- **Optimisation d’itinéraire** : `POST /api/route-optimize` — géocodage [Nominatim](https://nominatim.org) (respecter l’usage) + [OSRM](https://project-osrm.org/) (`OSRM_BASE_URL` optionnel pour une instance dédiée).
+- **Maintenance** : validation d’un ticket remet une machine **SAV** en **DISPO** en base.
+
+## Cahier des charges (rappel)
+
+V1.1 : codes couleur, terrain livraisons/reprises, n° de machine, SMS brouillon (`sms:`), export CSV. SMS automatiques = API tierce (Twilio, Brevo…) en phase 2.

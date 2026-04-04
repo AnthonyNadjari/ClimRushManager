@@ -1,7 +1,7 @@
 import type { ClientRow } from "./types";
 
 export function clientsToCsv(clients: ClientRow[]): string {
-  const header = "nom,telephone,email,statut,machines,ca_ht";
+  const header = "nom,telephone,email,statut,machines,ca_ht,numeros_unites";
   const lines = clients.map((c) =>
     [
       escapeCsv(c.name),
@@ -10,6 +10,7 @@ export function clientsToCsv(clients: ClientRow[]): string {
       c.status,
       c.machines,
       c.caHt,
+      escapeCsv(c.machineNumbers?.join(";") ?? ""),
     ].join(","),
   );
   return [header, ...lines].join("\r\n");

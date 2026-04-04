@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { KPI, MACHINES } from "@/lib/data";
-import type { MachineStatus } from "@/lib/types";
+import useSWR from "swr";
+import type { MachineStatus, Machine } from "@/lib/types";
+import { SimpleModal } from "@/components/SimpleModal";
+import { apiJson } from "@/lib/api-client";
 
 const statusLabels: Record<MachineStatus, string> = {
   DISPO: "DISPO",
@@ -20,12 +23,34 @@ const statusStyle: Record<MachineStatus, string> = {
   SAV: "bg-red-50 text-red-700 ring-1 ring-red-200",
 };
 
+async function fetcher<T>(url: string): Promise<T> {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export default function MachinesPage() {
+  const { data: machines, error, mutate, isLoading } = useSWR<Machine[]>(
+    "/api/machines",
+    fetcher,
+  );
+
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | MachineStatus | "louee">("all");
+  const [addOpen, setAddOpen] = useState(false);
+  const [newId, setNewId] = useState("");
+  const [newModel, setNewModel] = useState("12 000 BTU Monobloc");
+  const [newLot, setNewLot] = useState("Stock neuf — IDF");
+  const [saving, setSaving] = useState(false);
+
+  const stockTotal = machines?.length ?? 0;
+  const louees = machines?.filter((m) => m.status === "LOUE").length ?? 0;
+  const amorties = machines?.filter((m) => m.amortized).length ?? 0;
+  const amortPct = stockTotal > 0 ? (amorties / stockTotal) * 100 : 0;
 
   const list = useMemo(() => {
-    return MACHINES.filter((m) => {
+    if (!machines) return [];
+    return machines.filter((m) => {
       const matchQ =
         !q ||
         m.id.includes(q.replace("#", "")) ||
@@ -39,9 +64,60 @@ export default function MachinesPage() {
             : m.status === filter;
       return matchQ && matchF;
     });
-  }, [q, filter]);
+  }, [machines, q, filter]);
 
-  const amortPct = (KPI.amorties / KPI.stockTotal) * 100;
+  async function submitAdd(e: React.FormEvent) {
+    e.preventDefault();
+    const id = newId.replace(/^#/, "").trim();
+    if (!id) {
+      alert("Indiquez un numéro de machine.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await apiJson("/api/machines", {
+        method: "POST",
+        body: JSON.stringify({
+          id,
+          model: newModel,
+          lot: newLot,
+        }),
+      });
+      await apiJson("/api/activity", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: "ok",
+          title: "Nouvelle machine",
+          subtitle: `Unité #${id} ajoutée au parc`,
+          time: "À l’instant",
+        }),
+      });
+      setAddOpen(false);
+      setNewId("");
+      void mutate();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+        <p className="font-semibold">Base de données inaccessible</p>
+        <p className="mt-1">Vérifiez DATABASE_URL et les migrations Prisma.</p>
+      </div>
+    );
+  }
+
+  if (isLoading || !machines) {
+    return (
+      <div className="animate-pulse py-8 text-center text-sm text-zinc-500">
+        Chargement du parc…
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col pb-2">
@@ -50,17 +126,60 @@ export default function MachinesPage() {
           <h1 className="font-serif text-2xl font-bold text-zinc-900">
             Machines
           </h1>
-          <p className="text-sm text-zinc-500">
-            {KPI.stockTotal} unités au total
-          </p>
+          <p className="text-sm text-zinc-500">{stockTotal} unités au total</p>
         </div>
         <button
           type="button"
+          onClick={() => setAddOpen(true)}
           className="shrink-0 rounded-xl bg-[var(--cr-blue)] px-3 py-2 text-sm font-semibold text-white"
         >
           + Ajouter
         </button>
       </header>
+
+      <SimpleModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        title="Ajouter une machine"
+      >
+        <form onSubmit={submitAdd} className="space-y-3">
+          <p className="text-xs text-zinc-500">
+            Création en base PostgreSQL (identifiant = n° d’unité).
+          </p>
+          <label className="block">
+            <span className="text-xs font-medium text-zinc-500">N° machine</span>
+            <input
+              value={newId}
+              onChange={(e) => setNewId(e.target.value)}
+              placeholder="ex. 512"
+              className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-zinc-500">Modèle</span>
+            <input
+              value={newModel}
+              onChange={(e) => setNewModel(e.target.value)}
+              className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-zinc-500">Lot</span>
+            <input
+              value={newLot}
+              onChange={(e) => setNewLot(e.target.value)}
+              className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={saving}
+            className="min-h-11 w-full rounded-xl bg-[var(--cr-blue)] text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {saving ? "…" : "Créer en base"}
+          </button>
+        </form>
+      </SimpleModal>
 
       <input
         value={q}
@@ -73,12 +192,12 @@ export default function MachinesPage() {
         <Pill
           active={filter === "all"}
           onClick={() => setFilter("all")}
-          label={`Toutes (${KPI.stockTotal})`}
+          label={`Toutes (${stockTotal})`}
         />
         <Pill
           active={filter === "louee"}
           onClick={() => setFilter("louee")}
-          label={`Louées (${KPI.louees})`}
+          label={`Louées (${louees})`}
         />
         <Pill
           active={filter === "DISPO"}
@@ -98,13 +217,13 @@ export default function MachinesPage() {
             key={m.id}
             className="flex gap-3 rounded-2xl border border-zinc-100 bg-white p-3 shadow-sm"
           >
-            <button
-              type="button"
+            <Link
+              href={`/m/${encodeURIComponent(m.id)}`}
               className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-sm font-bold text-white"
-              title="Voir QR"
+              title="Ouvrir la fiche machine"
             >
               #{m.id}
-            </button>
+            </Link>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-zinc-900">{m.model}</p>
               <p className="text-sm text-zinc-600">
@@ -136,7 +255,7 @@ export default function MachinesPage() {
 
       <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/90 p-4">
         <p className="text-sm font-semibold text-violet-900">
-          {KPI.amorties} machines amorties ({amortPct.toFixed(1)} % du parc)
+          {amorties} machines amorties ({amortPct.toFixed(1)} % du parc)
         </p>
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-violet-200">
           <div

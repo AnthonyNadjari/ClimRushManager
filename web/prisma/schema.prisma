@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MachineStatus {
+  DISPO
+  LOUE
+  RESA
+  LIV
+  SAV
+}
+
+enum ClientStatus {
+  en_cours
+  a_venir
+  inactif
+}
+
+enum FieldMode {
+  livraison
+  reprise
+}
+
+enum FieldTaskStatus {
+  pending
+  in_progress
+  done
+}
+
+enum MaintPriority {
+  urgent
+  nettoyage
+  mineur
+  done
+}
+
+model Machine {
+  id                    String        @id
+  model                 String
+  lot                   String
+  status                MachineStatus
+  clientName            String?
+  returnDate            String?
+  purchasePriceHt       Float
+  cumulativeRevenueHt   Float
+  contract              String
+  daysRented            Int
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+}
+
+model Client {
+  id             String       @id
+  name           String
+  initials       String
+  status         ClientStatus
+  machines       Int
+  daysRented     Int
+  caHt           Float
+  email          String
+  phone          String
+  alert          String?
+  machineNumbers String[]     @default([])
+  lotSummary     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model FieldTask {
+  id          String          @id
+  mode        FieldMode
+  clientLabel String
+  address     String
+  phone       String
+  qty         Int
+  status      FieldTaskStatus
+  timeNote    String?
+  upsell      String?
+  extraNote   String?
+  sortOrder   Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model MaintenanceTicket {
+  id        String        @id
+  machineId String
+  title     String
+  detail    String
+  priority  MaintPriority
+  action    String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model Reservation {
+  id        String   @id @default(cuid())
+  date      DateTime
+  client    String
+  machines  Int
+  type      String
+  createdAt DateTime @default(now())
+}
+
+model Activity {
+  id        String   @id
+  kind      String
+  title     String
+  subtitle  String
+  time      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}

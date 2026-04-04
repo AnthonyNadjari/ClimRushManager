@@ -15,7 +15,6 @@ const secondary = [
   { href: "/clients", label: "Clients" },
   { href: "/maintenance", label: "Maintenance" },
   { href: "/analytics", label: "Analytics" },
-  { href: "/codes-qr", label: "Codes QR" },
 ] as const;
 
 function isActive(pathname: string, href: string) {

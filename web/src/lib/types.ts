@@ -10,9 +10,10 @@ export type FieldTaskStatus = "done" | "in_progress" | "pending";
 export type ClientStatus = "en_cours" | "a_venir" | "inactif";
 
 export interface Machine {
+  /** Numéro d’unité unique (une machine = un n°). */
   id: string;
   model: string;
-  /** Regroupement logique (tournée, chantier, achat…) — pour filtres / planches / ZIP. Un QR = toujours une machine. */
+  /** Regroupement logique (chantier, achat, tournée…) — un client peut avoir plusieurs n° ou un lot homogène. */
   lot: string;
   status: MachineStatus;
   clientName: string | null;
@@ -56,6 +57,10 @@ export interface ClientRow {
   alert?: string;
   email: string;
   phone: string;
+  /** Ex. unités assignées (démo) — en base, lien client ↔ machines par n°. */
+  machineNumbers?: string[];
+  /** Libellé de lot(s) pour ce client (démo). */
+  lotSummary?: string;
 }
 
 export interface MaintenanceRow {
