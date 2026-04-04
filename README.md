@@ -9,6 +9,21 @@ Application **Next.js** mobile-first : dashboard, parc machines (PostgreSQL), pl
 
 ## Démarrer en local
 
+### Option A — PostgreSQL avec Docker (recommandé)
+
+À la **racine** du dépôt :
+
+```bash
+cp web/.env.docker web/.env
+npm install --prefix web
+npm run setup:local
+npm run dev
+```
+
+`setup:local` lance `docker compose up -d` puis `db:prepare` dans `web` (migrate + seed). Vérifier la base : `GET /api/health` (200 si la DB répond, 503 sinon).
+
+### Option B — Base déjà disponible
+
 ```bash
 cd web
 cp .env.example .env

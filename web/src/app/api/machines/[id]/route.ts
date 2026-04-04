@@ -37,7 +37,13 @@ export async function PATCH(req: Request, ctx: Ctx) {
     }>;
 
     const data: Record<string, unknown> = {};
-    if (body.status != null) data.status = body.status;
+    if (body.status != null) {
+      data.status = body.status;
+      if (body.status === MachineStatus.DISPO) {
+        if (body.clientName === undefined) data.clientName = null;
+        if (body.returnDate === undefined) data.returnDate = null;
+      }
+    }
     if (body.clientName !== undefined) data.clientName = body.clientName;
     if (body.returnDate !== undefined) data.returnDate = body.returnDate;
     if (body.lot != null) data.lot = body.lot;
