@@ -2,6 +2,12 @@ import Link from "next/link";
 
 const links = [
   {
+    href: "/codes-qr",
+    title: "Codes QR",
+    desc: "Générer & imprimer les étiquettes machines",
+    color: "from-slate-600 to-zinc-800",
+  },
+  {
     href: "/reprises",
     title: "Reprises",
     desc: "Terrain — scan, photos, validation",

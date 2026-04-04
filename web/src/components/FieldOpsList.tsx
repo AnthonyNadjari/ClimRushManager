@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import type { FieldTask } from "@/lib/types";
 import { ScannerModal } from "./ScannerModal";
+import { getMachineById } from "@/lib/machine-lookup";
+import { parseScannedMachinePayload } from "@/lib/qr-payload";
 
 type Mode = "livraison" | "reprise";
 
@@ -236,7 +238,23 @@ export function FieldOpsList({
         open={scanOpen}
         onClose={() => setScanOpen(false)}
         onScan={(text) => {
-          alert(`Machine scannée : ${text}\n(Phase 1 — pas de sync serveur)`);
+          const id = parseScannedMachinePayload(text);
+          const m = id ? getMachineById(id) : undefined;
+          if (id && m) {
+            alert(
+              `Machine #${m.id} — ${m.model}\nStatut : ${m.status}\n(Phase 1 — pas de sync serveur)`,
+            );
+            return;
+          }
+          if (id) {
+            alert(
+              `ID reconnu : #${id}\nMachine absente des données démo — ajoutez-la dans l’inventaire.\n\nBrut : ${text}`,
+            );
+            return;
+          }
+          alert(
+            `Lecture : ${text}\n\nFormat attendu : URL …/m/12 ou CLIMRUSH|M|12 ou numéro d’unité.`,
+          );
         }}
       />
     </div>
