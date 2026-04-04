@@ -5,14 +5,65 @@ import { june2026Calendar } from "@/lib/data";
 
 const weekDays = ["L", "M", "M", "J", "V", "S", "D"];
 
+const PLANNING_YEAR = 2026;
+const PLANNING_MONTH = 6; // juin (1–12)
+
+function toIsoDate(day: number) {
+  const d = new Date(Date.UTC(PLANNING_YEAR, PLANNING_MONTH - 1, day));
+  return d.toISOString().slice(0, 10);
+}
+
 /** Juin 2026 commence un lundi → offset 0 */
 export default function PlanningPage() {
   const [view, setView] = useState<"month" | "week">("month");
+  const [reserveOpen, setReserveOpen] = useState(false);
+  const [prefillDay, setPrefillDay] = useState<number | null>(null);
+
   const days = useMemo(() => june2026Calendar(), []);
+
+  const [form, setForm] = useState({
+    date: toIsoDate(1),
+    client: "",
+    machines: "1",
+    type: "saison" as "hebdo" | "mensuel" | "saison",
+  });
+
+  function openReserve(day: number | null) {
+    setPrefillDay(day);
+    if (day != null) {
+      setForm((f) => ({ ...f, date: toIsoDate(day) }));
+    } else {
+      setForm({
+        date: toIsoDate(1),
+        client: "",
+        machines: "1",
+        type: "saison",
+      });
+    }
+    setReserveOpen(true);
+  }
+
+  function closeReserve() {
+    setReserveOpen(false);
+    setPrefillDay(null);
+  }
+
+  function submitReserve(e: React.FormEvent) {
+    e.preventDefault();
+    const n = Math.max(1, parseInt(form.machines, 10) || 1);
+    alert(
+      `Réservation enregistrée (démo — pas encore sauvegardée en base)\n\n` +
+        `Date : ${form.date}\n` +
+        `Client : ${form.client.trim() || "—"}\n` +
+        `Machines : ${n}\n` +
+        `Formule : ${form.type}`,
+    );
+    closeReserve();
+  }
 
   return (
     <div className="flex flex-1 flex-col pb-2">
-      <header className="flex items-center justify-between pt-3">
+      <header className="flex items-center justify-between pt-3 lg:pt-0">
         <div>
           <h1 className="font-serif text-2xl font-bold text-zinc-900">
             Planning
@@ -21,7 +72,8 @@ export default function PlanningPage() {
         </div>
         <button
           type="button"
-          className="rounded-xl bg-[var(--cr-blue)] px-3 py-2 text-sm font-semibold text-white"
+          onClick={() => openReserve(null)}
+          className="rounded-xl bg-[var(--cr-blue)] px-3 py-2 text-sm font-semibold text-white shadow-sm active:scale-[0.98]"
         >
           + Réserver
         </button>
@@ -60,7 +112,8 @@ export default function PlanningPage() {
               <button
                 key={meta.day}
                 type="button"
-                className="flex aspect-square flex-col items-center justify-start rounded-xl bg-white p-1 text-sm font-medium shadow-sm ring-1 ring-zinc-100"
+                onClick={() => openReserve(meta.day)}
+                className="flex aspect-square flex-col items-center justify-start rounded-xl bg-white p-1 text-sm font-medium shadow-sm ring-1 ring-zinc-100 transition-colors hover:bg-zinc-50 hover:ring-zinc-200 active:bg-zinc-100"
               >
                 <span>{meta.day}</span>
                 <span className="mt-1 flex flex-wrap justify-center gap-0.5">
@@ -100,7 +153,113 @@ export default function PlanningPage() {
             Retours
           </li>
         </ul>
+        <p className="mt-3 text-xs text-zinc-500">
+          Astuce : cliquer un jour ouvre aussi la réservation avec la date
+          préremplie.
+        </p>
       </div>
+
+      {reserveOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          role="dialog"
+          aria-modal
+          aria-labelledby="reserve-title"
+        >
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+              <h2 id="reserve-title" className="font-serif text-lg font-bold">
+                Nouvelle réservation
+              </h2>
+              <button
+                type="button"
+                onClick={closeReserve}
+                className="rounded-full px-3 py-1 text-sm text-zinc-600 hover:bg-zinc-100"
+              >
+                Fermer
+              </button>
+            </div>
+            <form onSubmit={submitReserve} className="space-y-4 p-4">
+              {prefillDay != null ? (
+                <p className="text-xs text-zinc-500">
+                  Jour sélectionné : <strong>{prefillDay} juin 2026</strong>
+                </p>
+              ) : null}
+              <label className="block">
+                <span className="text-xs font-medium text-zinc-500">
+                  Date de début
+                </span>
+                <input
+                  type="date"
+                  required
+                  value={form.date}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, date: e.target.value }))
+                  }
+                  className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-zinc-500">
+                  Client (raison sociale ou nom)
+                </span>
+                <input
+                  type="text"
+                  value={form.client}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, client: e.target.value }))
+                  }
+                  placeholder="ex. Résidence du Marais"
+                  className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-zinc-500">
+                  Nombre de machines
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.machines}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, machines: e.target.value }))
+                  }
+                  className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-medium text-zinc-500">
+                  Formule
+                </span>
+                <select
+                  value={form.type}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      type: e.target.value as typeof form.type,
+                    }))
+                  }
+                  className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                >
+                  <option value="hebdo">Hebdomadaire</option>
+                  <option value="mensuel">Mensuel</option>
+                  <option value="saison">Saison</option>
+                </select>
+              </label>
+              <p className="text-xs text-zinc-500">
+                Données de démonstration : la réservation n’est pas enregistrée
+                côté serveur pour l’instant.
+              </p>
+              <button
+                type="submit"
+                className="min-h-12 w-full rounded-xl bg-[var(--cr-blue)] text-sm font-semibold text-white"
+              >
+                Enregistrer (démo)
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
