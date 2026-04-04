@@ -2,9 +2,12 @@
   "name": "climrush-manager",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "node ./scripts/vercel-require-database-url.cjs && prisma generate && prisma migrate deploy && next build",
+    "build": "node ./scripts/build-production.cjs",
     "build:check": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",

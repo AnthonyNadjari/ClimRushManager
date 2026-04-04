@@ -41,21 +41,37 @@ Sans base, l’UI affiche une erreur sur les écrans qui lisent l’API.
 
 ## Déployer sur Vercel
 
-L’app Next.js vit dans **`web/`**. Sur Vercel, il faut que le **répertoire racine du projet** soit ce dossier, sinon le build Next et le dossier `.next` ne correspondent pas.
+L’app Next.js vit dans **`web/`**.
 
-1. **Settings → General → Root Directory** : mettre **`web`** (indispensable).
-2. **Settings → Environment Variables** : ajouter **`DATABASE_URL`** pour **Production** (et **Preview** si vous déployez des PR). Utilisez une URL PostgreSQL accessible depuis Internet, avec `sslmode=require` (Neon, Supabase, etc.). **Sans `DATABASE_URL`, le build échoue** : `npm run build` exécute `prisma migrate deploy` avant `next build`.
-3. Le fichier `web/vercel.json` ne fait que fixer le framework **Next.js** — pas de `outputDirectory` personnalisé (incompatible avec le preset Next sur Vercel).
-4. Après le premier déploiement réussi, exécuter le **seed** une fois (machine locale ou CI) :
+### 1. Racine du projet
 
-   ```bash
-   cd web
-   DATABASE_URL="votre_url" npx prisma db seed
-   ```
+**Settings → General → Root Directory** : **`web`**.
 
-   Le seed est idempotent sur les IDs de démo.
+Dans le même écran, sous **Build & Development** : si vous aviez des **commandes surchargées** (`npm install --prefix web`, etc.), remettez les **valeurs par défaut** (le fichier `web/vercel.json` impose déjà `npm install` + `npm run build` quand la racine est `web`).
 
-**Si le build Vercel échoue encore** : ouvrez l’onglet **Build Logs** — erreur fréquente = `DATABASE_URL` absent ou base injoignable (pare-feu / mauvaise URL). En local, reproduire : `cd web && npm run build` avec la même `DATABASE_URL`.
+Un `vercel.json` à la **racine du dépôt** existe aussi pour les cas où la racine Vercel resterait le repo entier : il délègue vers `web/`.
+
+### 2. Base PostgreSQL (obligatoire pour l’API)
+
+Le **build** peut réussir **sans** `DATABASE_URL` (les migrations sont alors ignorées avec un avertissement dans les logs). Pour que l’app soit **utilisable** (dashboard, machines, etc.), il faut une base :
+
+1. **Storage** (ou intégration **Neon** / autre Postgres) depuis le dashboard Vercel, **ou**
+2. **Settings → Environment Variables** : **`DATABASE_URL`** pour **Production** et **Preview**, par ex. `postgresql://…?sslmode=require`.
+
+Puis **Redeploy** une fois la variable ajoutée pour exécuter `prisma migrate deploy`.
+
+### 3. Seed (une fois)
+
+```bash
+cd web
+DATABASE_URL="votre_url" npx prisma db seed
+```
+
+Le seed est idempotent sur les IDs de démo.
+
+### 4. Node
+
+`web/package.json` fixe **`engines.node` à `20.x`** (aligné avec Vercel LTS). Vous pouvez forcer **Node.js 20** dans **Settings → General** si besoin.
 
 ## Fonctionnalités données réelles
 
