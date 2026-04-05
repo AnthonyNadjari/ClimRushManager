@@ -78,7 +78,7 @@ export async function optimizeRouteOsrm(addresses: string[]): Promise<
   const base =
     process.env.OSRM_BASE_URL?.replace(/\/$/, "") ??
     "https://router.project-osrm.org";
-  const tripUrl = `${base}/trip/v1/driving/${coords}?roundtrip=false&geometries=false`;
+  const tripUrl = `${base}/trip/v1/driving/${coords}?roundtrip=false&source=first&destination=last&geometries=false`;
 
   const tripRes = await fetch(tripUrl, { cache: "no-store" });
   if (!tripRes.ok) {

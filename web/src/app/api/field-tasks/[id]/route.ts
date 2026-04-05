@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { FieldTaskStatus } from "@prisma/client";
+import { Prisma, FieldTaskStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { serializeFieldTask } from "@/lib/serializers";
 
@@ -28,6 +28,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return NextResponse.json(serializeFieldTask(row));
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Mise à jour impossible" }, { status: 400 });
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2025"
+    ) {
+      return NextResponse.json({ error: "Tâche non trouvée" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Mise à jour impossible" }, { status: 500 });
   }
 }

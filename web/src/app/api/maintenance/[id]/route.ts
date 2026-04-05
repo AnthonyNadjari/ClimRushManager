@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MaintPriority, MachineStatus } from "@prisma/client";
+import { Prisma, MaintPriority, MachineStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { serializeMaintenance } from "@/lib/serializers";
 
@@ -54,6 +54,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return NextResponse.json(serializeMaintenance(row));
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Mise à jour impossible" }, { status: 400 });
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2025"
+    ) {
+      return NextResponse.json({ error: "Ticket non trouvé" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Mise à jour impossible" }, { status: 500 });
   }
 }

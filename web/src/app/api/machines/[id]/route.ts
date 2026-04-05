@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { MachineStatus } from "@prisma/client";
+import { Prisma, MachineStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { serializeMachine } from "@/lib/serializers";
 
@@ -59,6 +59,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return NextResponse.json(serializeMachine(row));
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Mise à jour impossible" }, { status: 400 });
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2025"
+    ) {
+      return NextResponse.json({ error: "Machine non trouvée" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Mise à jour impossible" }, { status: 500 });
   }
 }

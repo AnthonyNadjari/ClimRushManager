@@ -16,6 +16,12 @@ export async function GET(req: Request) {
     }
     const d0 = new Date(from);
     const d1 = new Date(to);
+    if (isNaN(d0.getTime()) || isNaN(d1.getTime())) {
+      return NextResponse.json(
+        { error: "from/to doivent être des dates ISO valides" },
+        { status: 400 },
+      );
+    }
     const rows = await prisma.reservation.findMany({
       where: { date: { gte: d0, lte: d1 } },
       orderBy: { date: "asc" },
@@ -46,9 +52,13 @@ export async function POST(req: Request) {
     if (!body.date) {
       return NextResponse.json({ error: "date requise" }, { status: 400 });
     }
+    const parsed = new Date(body.date);
+    if (isNaN(parsed.getTime())) {
+      return NextResponse.json({ error: "date ISO invalide" }, { status: 400 });
+    }
     const row = await prisma.reservation.create({
       data: {
-        date: new Date(body.date),
+        date: parsed,
         client: body.client?.trim() ?? "",
         machines: Math.max(1, Number(body.machines) || 1),
         type: body.type ?? "saison",
