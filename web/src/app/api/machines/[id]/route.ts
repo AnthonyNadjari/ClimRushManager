@@ -42,6 +42,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
       if (body.status === MachineStatus.DISPO) {
         if (body.clientName === undefined) data.clientName = null;
         if (body.returnDate === undefined) data.returnDate = null;
+        data.clientId = null;
       }
     }
     if (body.clientName !== undefined) data.clientName = body.clientName;

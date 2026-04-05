@@ -14,12 +14,11 @@ export async function PATCH(req: Request, ctx: Ctx) {
       name: string;
       email: string;
       phone: string;
+      address: string;
       status: ClientStatus;
-      machines: number;
       daysRented: number;
       caHt: number;
       alert: string | null;
-      machineNumbers: string[];
       lotSummary: string | null;
     }>;
 
@@ -27,17 +26,17 @@ export async function PATCH(req: Request, ctx: Ctx) {
     if (body.name != null) data.name = body.name;
     if (body.email != null) data.email = body.email;
     if (body.phone != null) data.phone = body.phone;
+    if (body.address != null) data.address = body.address;
     if (body.status != null) data.status = body.status;
-    if (body.machines != null) data.machines = body.machines;
     if (body.daysRented != null) data.daysRented = body.daysRented;
     if (body.caHt != null) data.caHt = body.caHt;
     if (body.alert !== undefined) data.alert = body.alert;
-    if (body.machineNumbers != null) data.machineNumbers = body.machineNumbers;
     if (body.lotSummary !== undefined) data.lotSummary = body.lotSummary;
 
     const row = await prisma.client.update({
       where: { id },
       data,
+      include: { assignedMachines: { select: { id: true } } },
     });
     return NextResponse.json(serializeClient(row));
   } catch (e) {

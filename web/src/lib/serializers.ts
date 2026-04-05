@@ -38,6 +38,7 @@ export function serializeMachine(m: PMachine): Machine {
     model: m.model,
     lot: m.lot,
     status: m.status,
+    clientId: m.clientId,
     clientName: m.clientName,
     returnDate: m.returnDate,
     purchasePriceHt: m.purchasePriceHt,
@@ -50,20 +51,25 @@ export function serializeMachine(m: PMachine): Machine {
   };
 }
 
-export function serializeClient(c: PClient): ClientRow {
+type ClientWithMachines = PClient & {
+  assignedMachines?: { id: string }[];
+};
+
+export function serializeClient(c: ClientWithMachines): ClientRow {
+  const machineNumbers = c.assignedMachines?.map((m) => m.id) ?? [];
   return {
     id: c.id,
     name: c.name,
     initials: c.initials,
     status: c.status,
-    machines: c.machines,
+    machines: machineNumbers.length,
     daysRented: c.daysRented,
     caHt: c.caHt,
     alert: c.alert ?? undefined,
     email: c.email,
     phone: c.phone,
-    machineNumbers:
-      c.machineNumbers.length > 0 ? c.machineNumbers : undefined,
+    address: c.address,
+    machineNumbers,
     lotSummary: c.lotSummary ?? undefined,
   };
 }

@@ -9,22 +9,43 @@ export async function POST(req: Request) {
     const body = (await req.json()) as {
       from?: string;
       to?: string;
+      exclude?: string[];
+      ids?: string[];
       model?: string;
       lot?: string;
       contract?: string;
-      clientName?: string;
     };
 
-    const lo = parseInt(body.from ?? "", 10);
-    const hi = parseInt(body.to ?? "", 10);
-    if (isNaN(lo) || isNaN(hi) || lo > hi || hi - lo > 200) {
-      return NextResponse.json(
-        { error: "from/to numériques requis (max 200 unités)" },
-        { status: 400 },
+    let ids: string[];
+
+    if (body.ids && body.ids.length > 0) {
+      // List mode: explicit IDs
+      ids = body.ids.map((s) => s.trim()).filter(Boolean);
+      if (ids.length === 0) {
+        return NextResponse.json({ error: "Liste vide" }, { status: 400 });
+      }
+      if (ids.length > 200) {
+        return NextResponse.json(
+          { error: "Maximum 200 unités par requête" },
+          { status: 400 },
+        );
+      }
+    } else {
+      // Range mode: from/to with optional exclusions
+      const lo = parseInt(body.from ?? "", 10);
+      const hi = parseInt(body.to ?? "", 10);
+      if (isNaN(lo) || isNaN(hi) || lo > hi || hi - lo > 200) {
+        return NextResponse.json(
+          { error: "from/to numériques requis (max 200 unités)" },
+          { status: 400 },
+        );
+      }
+      const excludeSet = new Set(body.exclude?.map((s) => s.trim()) ?? []);
+      ids = Array.from({ length: hi - lo + 1 }, (_, i) => String(lo + i)).filter(
+        (id) => !excludeSet.has(id),
       );
     }
 
-    const ids = Array.from({ length: hi - lo + 1 }, (_, i) => String(lo + i));
     const existing = await prisma.machine.findMany({
       where: { id: { in: ids } },
       select: { id: true },
@@ -39,7 +60,8 @@ export async function POST(req: Request) {
           model: body.model ?? "12 000 BTU Monobloc",
           lot: body.lot ?? "Stock neuf — IDF",
           status: MachineStatus.DISPO,
-          clientName: body.clientName ?? null,
+          clientName: null,
+          clientId: null,
           returnDate: null,
           purchasePriceHt: 175,
           cumulativeRevenueHt: 0,

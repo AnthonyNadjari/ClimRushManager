@@ -15,7 +15,10 @@ function initialsFromName(name: string) {
 
 export async function GET() {
   try {
-    const rows = await prisma.client.findMany({ orderBy: { name: "asc" } });
+    const rows = await prisma.client.findMany({
+      orderBy: { name: "asc" },
+      include: { assignedMachines: { select: { id: true } } },
+    });
     return NextResponse.json(rows.map(serializeClient));
   } catch (e) {
     console.error(e);
@@ -32,6 +35,7 @@ export async function POST(req: Request) {
       name?: string;
       email?: string;
       phone?: string;
+      address?: string;
       status?: ClientStatus;
     };
     const name = body.name?.trim();
@@ -46,12 +50,12 @@ export async function POST(req: Request) {
         initials: initialsFromName(name),
         email: body.email?.trim() || "—",
         phone: body.phone?.trim() || "—",
+        address: body.address?.trim() || "",
         status: body.status ?? ClientStatus.a_venir,
-        machines: 0,
         daysRented: 0,
         caHt: 0,
-        machineNumbers: [],
       },
+      include: { assignedMachines: { select: { id: true } } },
     });
     return NextResponse.json(serializeClient(row));
   } catch (e) {

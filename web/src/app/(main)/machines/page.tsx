@@ -7,6 +7,7 @@ import type { MachineStatus, Machine } from "@/lib/types";
 import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import { SimpleModal } from "@/components/SimpleModal";
 import { apiJson } from "@/lib/api-client";
+import { MACHINE_MODELS, DEFAULT_MACHINE_MODEL, type MachineModelName } from "@/lib/constants";
 
 const statusLabels: Record<MachineStatus, string> = {
   DISPO: "DISPO",
@@ -38,19 +39,28 @@ export default function MachinesPage() {
 
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | MachineStatus | "louee">("all");
+  const [lotFilter, setLotFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"list" | "lot">("list");
   const [addOpen, setAddOpen] = useState(false);
-  const [addMode, setAddMode] = useState<"single" | "batch">("single");
+  const [addMode, setAddMode] = useState<"single" | "batch" | "list">("single");
   const [newId, setNewId] = useState("");
-  const [newModel, setNewModel] = useState("12 000 BTU Monobloc");
+  const [newModel, setNewModel] = useState<MachineModelName>(DEFAULT_MACHINE_MODEL);
   const [newLot, setNewLot] = useState("Stock neuf — IDF");
   const [batchFrom, setBatchFrom] = useState("");
   const [batchTo, setBatchTo] = useState("");
+  const [batchCustom, setBatchCustom] = useState("");
+  const [batchExclude, setBatchExclude] = useState("");
   const [saving, setSaving] = useState(false);
 
   const stockTotal = machines?.length ?? 0;
   const louees = machines?.filter((m) => m.status === "LOUE").length ?? 0;
   const amorties = machines?.filter((m) => m.amortized).length ?? 0;
   const amortPct = stockTotal > 0 ? (amorties / stockTotal) * 100 : 0;
+
+  const uniqueLots = useMemo(() => {
+    if (!machines) return [];
+    return Array.from(new Set(machines.map((m) => m.lot))).sort();
+  }, [machines]);
 
   const list = useMemo(() => {
     if (!machines) return [];
@@ -66,15 +76,25 @@ export default function MachinesPage() {
           : filter === "louee"
             ? m.status === "LOUE"
             : m.status === filter;
-      return matchQ && matchF;
+      const matchLot = lotFilter === "all" || m.lot === lotFilter;
+      return matchQ && matchF && matchLot;
     });
-  }, [machines, q, filter]);
+  }, [machines, q, filter, lotFilter]);
+
+  const groupedByLot = useMemo(() => {
+    const map = new Map<string, Machine[]>();
+    for (const m of list) {
+      const arr = map.get(m.lot) ?? [];
+      arr.push(m);
+      map.set(m.lot, arr);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [list]);
 
   async function submitAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (addMode === "batch") {
-      return submitBatch(e);
-    }
+    if (addMode === "batch") return submitBatch(e);
+    if (addMode === "list") return submitList(e);
     const id = newId.replace(/^#/, "").trim();
     if (!id) {
       alert("Indiquez un numéro de machine.");
@@ -126,6 +146,7 @@ export default function MachinesPage() {
           body: JSON.stringify({
             from: lo,
             to: hi,
+            exclude: batchExclude.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean),
             model: newModel,
             lot: newLot,
           }),
@@ -143,6 +164,41 @@ export default function MachinesPage() {
       setAddOpen(false);
       setBatchFrom("");
       setBatchTo("");
+      void mutate();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function submitList(e: React.FormEvent) {
+    e.preventDefault();
+    const ids = batchCustom.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean);
+    if (ids.length === 0) {
+      alert("Indiquez au moins un numéro.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await apiJson<{ created: string[]; skipped: string[]; total: number }>(
+        "/api/machines/batch",
+        {
+          method: "POST",
+          body: JSON.stringify({ ids, model: newModel, lot: newLot }),
+        },
+      );
+      await apiJson("/api/activity", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: "ok",
+          title: "Machines ajoutées",
+          subtitle: `${res.total} unités créées${res.skipped.length ? `, ${res.skipped.length} déjà existantes` : ""}`,
+          time: "À l'instant",
+        }),
+      });
+      setAddOpen(false);
+      setBatchCustom("");
       void mutate();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Erreur");
@@ -191,7 +247,7 @@ export default function MachinesPage() {
             <button
               type="button"
               onClick={() => setAddMode("single")}
-              className={`flex-1 rounded-lg py-2 text-sm font-semibold ${
+              className={`flex-1 rounded-lg py-2 text-xs font-semibold ${
                 addMode === "single" ? "bg-white shadow-sm" : "text-zinc-600"
               }`}
             >
@@ -200,11 +256,20 @@ export default function MachinesPage() {
             <button
               type="button"
               onClick={() => setAddMode("batch")}
-              className={`flex-1 rounded-lg py-2 text-sm font-semibold ${
+              className={`flex-1 rounded-lg py-2 text-xs font-semibold ${
                 addMode === "batch" ? "bg-white shadow-sm" : "text-zinc-600"
               }`}
             >
-              Par lot (plage)
+              Plage
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddMode("list")}
+              className={`flex-1 rounded-lg py-2 text-xs font-semibold ${
+                addMode === "list" ? "bg-white shadow-sm" : "text-zinc-600"
+              }`}
+            >
+              Liste libre
             </button>
           </div>
 
@@ -218,36 +283,62 @@ export default function MachinesPage() {
                 className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
               />
             </label>
+          ) : addMode === "batch" ? (
+            <>
+              <div className="flex gap-2">
+                <label className="flex-1">
+                  <span className="text-xs font-medium text-zinc-500">Du n°</span>
+                  <input
+                    value={batchFrom}
+                    onChange={(e) => setBatchFrom(e.target.value)}
+                    placeholder="200"
+                    className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                  />
+                </label>
+                <label className="flex-1">
+                  <span className="text-xs font-medium text-zinc-500">Au n°</span>
+                  <input
+                    value={batchTo}
+                    onChange={(e) => setBatchTo(e.target.value)}
+                    placeholder="250"
+                    className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                  />
+                </label>
+              </div>
+              <label className="block">
+                <span className="text-xs font-medium text-zinc-500">Exclure (optionnel)</span>
+                <input
+                  value={batchExclude}
+                  onChange={(e) => setBatchExclude(e.target.value)}
+                  placeholder="ex. 10, 15"
+                  className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                />
+              </label>
+            </>
           ) : (
-            <div className="flex gap-2">
-              <label className="flex-1">
-                <span className="text-xs font-medium text-zinc-500">Du n°</span>
-                <input
-                  value={batchFrom}
-                  onChange={(e) => setBatchFrom(e.target.value)}
-                  placeholder="200"
-                  className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
-                />
-              </label>
-              <label className="flex-1">
-                <span className="text-xs font-medium text-zinc-500">Au n°</span>
-                <input
-                  value={batchTo}
-                  onChange={(e) => setBatchTo(e.target.value)}
-                  placeholder="250"
-                  className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
-                />
-              </label>
-            </div>
+            <label className="block">
+              <span className="text-xs font-medium text-zinc-500">Numéros (séparés par virgule)</span>
+              <textarea
+                value={batchCustom}
+                onChange={(e) => setBatchCustom(e.target.value)}
+                placeholder="ex. 1, 2, 3, 5, 7, 11"
+                rows={3}
+                className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-base outline-none focus:border-[var(--cr-blue)]"
+              />
+            </label>
           )}
 
           <label className="block">
             <span className="text-xs font-medium text-zinc-500">Modèle</span>
-            <input
+            <select
               value={newModel}
-              onChange={(e) => setNewModel(e.target.value)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
-            />
+              onChange={(e) => setNewModel(e.target.value as MachineModelName)}
+              className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+            >
+              {MACHINE_MODELS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
           </label>
           <label className="block">
             <span className="text-xs font-medium text-zinc-500">Lot</span>
@@ -266,7 +357,9 @@ export default function MachinesPage() {
               ? "…"
               : addMode === "batch"
                 ? `Créer le lot (#${batchFrom || "?"} → #${batchTo || "?"})`
-                : "Créer en base"}
+                : addMode === "list"
+                  ? "Créer les machines"
+                  : "Créer en base"}
           </button>
         </form>
       </SimpleModal>
@@ -278,6 +371,7 @@ export default function MachinesPage() {
         className="mt-4 min-h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-base outline-none focus:border-[var(--cr-blue)]"
       />
 
+      {/* Status filter pills */}
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Pill
           active={filter === "all"}
@@ -301,15 +395,90 @@ export default function MachinesPage() {
         />
       </div>
 
-      <ul className="mt-3 flex flex-col gap-3">
-        {list.map((m) => (
-          <MachineRow
-            key={m.id}
-            machine={m}
-            onUpdated={() => void mutate()}
-          />
-        ))}
-      </ul>
+      {/* Lot filter + view toggle */}
+      <div className="mt-2 flex items-center gap-2">
+        <div className="flex flex-1 gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            type="button"
+            onClick={() => setLotFilter("all")}
+            className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium ${
+              lotFilter === "all"
+                ? "bg-zinc-800 text-white"
+                : "bg-zinc-100 text-zinc-600"
+            }`}
+          >
+            Tous lots
+          </button>
+          {uniqueLots.map((lot) => (
+            <button
+              key={lot}
+              type="button"
+              onClick={() => setLotFilter(lot === lotFilter ? "all" : lot)}
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium ${
+                lotFilter === lot
+                  ? "bg-zinc-800 text-white"
+                  : "bg-zinc-100 text-zinc-600"
+              }`}
+            >
+              {lot}
+            </button>
+          ))}
+        </div>
+        <div className="flex shrink-0 rounded-lg bg-zinc-200/80 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${
+              viewMode === "list" ? "bg-white shadow-sm" : "text-zinc-600"
+            }`}
+          >
+            Liste
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("lot")}
+            className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${
+              viewMode === "lot" ? "bg-white shadow-sm" : "text-zinc-600"
+            }`}
+          >
+            Par lot
+          </button>
+        </div>
+      </div>
+
+      {/* Machine list */}
+      {viewMode === "list" ? (
+        <ul className="mt-3 flex flex-col gap-3">
+          {list.map((m) => (
+            <MachineRow
+              key={m.id}
+              machine={m}
+              onUpdated={() => void mutate()}
+            />
+          ))}
+        </ul>
+      ) : (
+        <div className="mt-3 space-y-4">
+          {groupedByLot.map(([lot, lotMachines]) => {
+            const dispo = lotMachines.filter((m) => m.status === "DISPO").length;
+            const loue = lotMachines.filter((m) => m.status === "LOUE").length;
+            const sav = lotMachines.filter((m) => m.status === "SAV").length;
+            const other = lotMachines.length - dispo - loue - sav;
+            return (
+              <LotGroup
+                key={lot}
+                lot={lot}
+                machines={lotMachines}
+                dispo={dispo}
+                loue={loue}
+                savCount={sav}
+                other={other}
+                onUpdated={() => void mutate()}
+              />
+            );
+          })}
+        </div>
+      )}
 
       <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/90 p-4">
         <p className="text-sm font-semibold text-violet-900">
@@ -420,6 +589,71 @@ function MachineRow({
         </label>
       </div>
     </li>
+  );
+}
+
+function LotGroup({
+  lot,
+  machines: lotMachines,
+  dispo,
+  loue,
+  savCount,
+  other,
+  onUpdated,
+}: {
+  lot: string;
+  machines: Machine[];
+  dispo: number;
+  loue: number;
+  savCount: number;
+  other: number;
+  onUpdated: () => void;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2 px-4 py-3 text-left"
+      >
+        <span className="text-sm font-bold text-zinc-900">{lot}</span>
+        <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-semibold text-zinc-700">
+          {lotMachines.length}
+        </span>
+        <span className="flex-1" />
+        <span className="flex gap-1.5 text-[10px] font-semibold">
+          {dispo > 0 && (
+            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-800">
+              {dispo} dispo
+            </span>
+          )}
+          {loue > 0 && (
+            <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-800">
+              {loue} louée{loue > 1 ? "s" : ""}
+            </span>
+          )}
+          {savCount > 0 && (
+            <span className="rounded bg-red-50 px-1.5 py-0.5 text-red-700">
+              {savCount} SAV
+            </span>
+          )}
+          {other > 0 && (
+            <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-zinc-600">
+              {other} autre{other > 1 ? "s" : ""}
+            </span>
+          )}
+        </span>
+        <span className="text-xs text-zinc-400">{open ? "▼" : "▶"}</span>
+      </button>
+      {open && (
+        <ul className="flex flex-col gap-2 px-3 pb-3">
+          {lotMachines.map((m) => (
+            <MachineRow key={m.id} machine={m} onUpdated={onUpdated} />
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

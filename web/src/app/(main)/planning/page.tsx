@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import useSWR from "swr";
+import type { ClientRow } from "@/lib/types";
 import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import { june2026Calendar } from "@/lib/data";
 import { apiJson } from "@/lib/api-client";
@@ -36,12 +37,15 @@ export default function PlanningPage() {
   const { data: reservations, error, mutate, isLoading } = useSWR<
     ReservationRow[]
   >(resKey, fetcher);
+  const { data: allClients } = useSWR<ClientRow[]>("/api/clients", fetcher);
 
   const [view, setView] = useState<"month" | "week">("month");
   const [reserveOpen, setReserveOpen] = useState(false);
   const [prefillDay, setPrefillDay] = useState<number | null>(null);
   const [portalReady, setPortalReady] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const clientInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setPortalReady(true), []);
 
@@ -74,6 +78,13 @@ export default function PlanningPage() {
     address: "",
     phone: "",
   });
+
+  const clientSuggestions = useMemo(() => {
+    if (!allClients) return [];
+    if (!form.client) return allClients;
+    const q = form.client.toLowerCase();
+    return allClients.filter((c) => c.name.toLowerCase().includes(q));
+  }, [allClients, form.client]);
 
   function openReserve(day: number | null) {
     setPrefillDay(day);
@@ -298,19 +309,62 @@ export default function PlanningPage() {
                       className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
                     />
                   </label>
-                  <label className="block">
+                  <label className="relative block">
                     <span className="text-xs font-medium text-zinc-500">
                       Client (raison sociale ou nom)
                     </span>
                     <input
+                      ref={clientInputRef}
                       type="text"
                       value={form.client}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, client: e.target.value }))
+                      onChange={(e) => {
+                        setForm((f) => ({ ...f, client: e.target.value }));
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() =>
+                        setTimeout(() => setShowSuggestions(false), 200)
                       }
                       placeholder="ex. Résidence du Marais"
                       className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                      autoComplete="off"
                     />
+                    {showSuggestions && clientSuggestions.length > 0 && (
+                      <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-40 overflow-y-auto rounded-xl border border-zinc-200 bg-white shadow-lg">
+                        {clientSuggestions.slice(0, 8).map((c) => (
+                          <li key={c.id}>
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setForm((f) => ({
+                                  ...f,
+                                  client: c.name,
+                                  address: c.address || f.address,
+                                  phone: c.phone || f.phone,
+                                }));
+                                setShowSuggestions(false);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-zinc-50"
+                            >
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-[10px] font-bold">
+                                {c.initials}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block font-medium text-zinc-900">
+                                  {c.name}
+                                </span>
+                                {c.address ? (
+                                  <span className="block truncate text-xs text-zinc-500">
+                                    {c.address}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </label>
                   <label className="block">
                     <span className="text-xs font-medium text-zinc-500">

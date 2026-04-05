@@ -16,6 +16,7 @@ export interface Machine {
   /** Regroupement logique (chantier, achat, tournée…) — un client peut avoir plusieurs n° ou un lot homogène. */
   lot: string;
   status: MachineStatus;
+  clientId: string | null;
   clientName: string | null;
   returnDate: string | null;
   purchasePriceHt: number;
@@ -57,9 +58,8 @@ export interface ClientRow {
   alert?: string;
   email: string;
   phone: string;
-  /** Ex. unités assignées (démo) — en base, lien client ↔ machines par n°. */
-  machineNumbers?: string[];
-  /** Libellé de lot(s) pour ce client (démo). */
+  address: string;
+  machineNumbers: string[];
   lotSummary?: string;
 }
 

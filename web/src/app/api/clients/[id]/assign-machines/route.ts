@@ -1,0 +1,75 @@
+import { randomUUID } from "crypto";
+import { NextResponse } from "next/server";
+import { MachineStatus } from "@prisma/client";
+import { prisma } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function POST(req: Request, ctx: Ctx) {
+  try {
+    const { id: clientId } = await ctx.params;
+    const body = (await req.json()) as { machineIds?: string[] };
+    const machineIds = body.machineIds?.filter(Boolean) ?? [];
+    if (machineIds.length === 0) {
+      return NextResponse.json({ error: "machineIds requis" }, { status: 400 });
+    }
+
+    const client = await prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) {
+      return NextResponse.json({ error: "Client non trouvé" }, { status: 404 });
+    }
+
+    const machines = await prisma.machine.findMany({
+      where: { id: { in: machineIds } },
+    });
+
+    const unavailable = machines.filter(
+      (m) => m.status !== MachineStatus.DISPO && m.clientId !== clientId,
+    );
+    if (unavailable.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Machines non disponibles : ${unavailable.map((m) => `#${m.id}`).join(", ")}`,
+        },
+        { status: 409 },
+      );
+    }
+
+    const max = await prisma.activity.aggregate({ _max: { sortOrder: true } });
+    const sortOrder = (max._max.sortOrder ?? 0) + 1;
+
+    await prisma.$transaction([
+      ...machineIds.map((mid) =>
+        prisma.machine.update({
+          where: { id: mid },
+          data: {
+            clientId,
+            clientName: client.name,
+            status: MachineStatus.LOUE,
+          },
+        }),
+      ),
+      prisma.client.update({
+        where: { id: clientId },
+        data: { status: "en_cours" },
+      }),
+      prisma.activity.create({
+        data: {
+          id: `a_${randomUUID().slice(0, 12)}`,
+          kind: "ok",
+          title: "Machines assignées",
+          subtitle: `${machineIds.length} unités → ${client.name} (${machineIds.map((id) => `#${id}`).join(", ")})`,
+          time: "À l'instant",
+          sortOrder,
+        },
+      }),
+    ]);
+
+    return NextResponse.json({ assigned: machineIds, client: client.name });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: "Erreur assignation" }, { status: 500 });
+  }
+}

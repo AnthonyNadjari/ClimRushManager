@@ -45,6 +45,8 @@ model Machine {
   model                 String
   lot                   String
   status                MachineStatus
+  clientId              String?
+  client                Client?       @relation(fields: [clientId], references: [id])
   clientName            String?
   returnDate            String?
   purchasePriceHt       Float
@@ -56,20 +58,20 @@ model Machine {
 }
 
 model Client {
-  id             String       @id
-  name           String
-  initials       String
-  status         ClientStatus
-  machines       Int
-  daysRented     Int
-  caHt           Float
-  email          String
-  phone          String
-  alert          String?
-  machineNumbers String[]     @default([])
-  lotSummary     String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id               String       @id
+  name             String
+  initials         String
+  status           ClientStatus
+  daysRented       Int
+  caHt             Float
+  email            String
+  phone            String
+  address          String       @default("")
+  alert            String?
+  lotSummary       String?
+  assignedMachines Machine[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 }
 
 model FieldTask {
