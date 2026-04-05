@@ -1,0 +1,16 @@
+# Railway — monorepo : l’app Next.js est dans web/
+# Variables requises sur le service : DATABASE_URL (Postgres Railway ou URL externe ?sslmode=require)
+# https://docs.railway.com/guides/config-as-code
+
+[build]
+builder = "RAILPACK"
+buildCommand = "npm ci --prefix web && npm run build --prefix web"
+
+[deploy]
+startCommand = "npm run start --prefix web"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+
+[build.environment]
+NODE_VERSION = "20"

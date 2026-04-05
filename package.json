@@ -1,6 +1,9 @@
 {
   "name": "climrush-manager-root",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",

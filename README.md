@@ -83,6 +83,16 @@ Le seed est idempotent sur les IDs de démo.
 
 `web/package.json` fixe **`engines.node` à `20.x`** (aligné avec Vercel LTS). Vous pouvez forcer **Node.js 20** dans **Settings → General** si besoin.
 
+## Déployer sur Railway
+
+Un fichier **`railway.toml`** à la racine définit build / start pour le dossier **`web/`** (monorepo) :
+
+- **Build** : `npm ci --prefix web && npm run build --prefix web` (Prisma + Next ; migrations si `DATABASE_URL` est défini au build).
+- **Start** : `next start` écoute sur **`0.0.0.0`** (obligatoire sur Railway).
+- **Healthcheck** : `GET /api/health` (échoue tant que la base ne répond pas — ajoutez bien **`DATABASE_URL`** au service, idéalement une base Postgres Railway ou une URL compatible SSL).
+
+Si le service Railway pointait sur la racine sans commandes personnalisées, le build pouvait échouer (pas de dépendances Next dans la racine). Après push, **redéployez** depuis Railway.
+
 ## Fonctionnalités données réelles
 
 - **CRUD** via routes `/api/*` : machines, clients, tâches terrain, maintenance, réservations, fil d’activité.
