@@ -39,9 +39,12 @@ export default function MachinesPage() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | MachineStatus | "louee">("all");
   const [addOpen, setAddOpen] = useState(false);
+  const [addMode, setAddMode] = useState<"single" | "batch">("single");
   const [newId, setNewId] = useState("");
   const [newModel, setNewModel] = useState("12 000 BTU Monobloc");
   const [newLot, setNewLot] = useState("Stock neuf — IDF");
+  const [batchFrom, setBatchFrom] = useState("");
+  const [batchTo, setBatchTo] = useState("");
   const [saving, setSaving] = useState(false);
 
   const stockTotal = machines?.length ?? 0;
@@ -69,6 +72,9 @@ export default function MachinesPage() {
 
   async function submitAdd(e: React.FormEvent) {
     e.preventDefault();
+    if (addMode === "batch") {
+      return submitBatch(e);
+    }
     const id = newId.replace(/^#/, "").trim();
     if (!id) {
       alert("Indiquez un numéro de machine.");
@@ -95,6 +101,48 @@ export default function MachinesPage() {
       });
       setAddOpen(false);
       setNewId("");
+      void mutate();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function submitBatch(e: React.FormEvent) {
+    e.preventDefault();
+    const lo = batchFrom.trim();
+    const hi = batchTo.trim();
+    if (!lo || !hi) {
+      alert("Indiquez les numéros de début et fin.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await apiJson<{ created: string[]; skipped: string[]; total: number }>(
+        "/api/machines/batch",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            from: lo,
+            to: hi,
+            model: newModel,
+            lot: newLot,
+          }),
+        },
+      );
+      await apiJson("/api/activity", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: "ok",
+          title: "Lot machines ajouté",
+          subtitle: `${res.total} unités créées (#${lo}–#${hi})${res.skipped.length ? `, ${res.skipped.length} déjà existantes` : ""}`,
+          time: "À l’instant",
+        }),
+      });
+      setAddOpen(false);
+      setBatchFrom("");
+      setBatchTo("");
       void mutate();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Erreur");
@@ -136,21 +184,63 @@ export default function MachinesPage() {
       <SimpleModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
-        title="Ajouter une machine"
+        title="Ajouter des machines"
       >
         <form onSubmit={submitAdd} className="space-y-3">
-          <p className="text-xs text-zinc-500">
-            Création en base PostgreSQL (identifiant = n° d’unité).
-          </p>
-          <label className="block">
-            <span className="text-xs font-medium text-zinc-500">N° machine</span>
-            <input
-              value={newId}
-              onChange={(e) => setNewId(e.target.value)}
-              placeholder="ex. 512"
-              className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
-            />
-          </label>
+          <div className="flex rounded-xl bg-zinc-200/80 p-1">
+            <button
+              type="button"
+              onClick={() => setAddMode("single")}
+              className={`flex-1 rounded-lg py-2 text-sm font-semibold ${
+                addMode === "single" ? "bg-white shadow-sm" : "text-zinc-600"
+              }`}
+            >
+              Une machine
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddMode("batch")}
+              className={`flex-1 rounded-lg py-2 text-sm font-semibold ${
+                addMode === "batch" ? "bg-white shadow-sm" : "text-zinc-600"
+              }`}
+            >
+              Par lot (plage)
+            </button>
+          </div>
+
+          {addMode === "single" ? (
+            <label className="block">
+              <span className="text-xs font-medium text-zinc-500">N° machine</span>
+              <input
+                value={newId}
+                onChange={(e) => setNewId(e.target.value)}
+                placeholder="ex. 512"
+                className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+              />
+            </label>
+          ) : (
+            <div className="flex gap-2">
+              <label className="flex-1">
+                <span className="text-xs font-medium text-zinc-500">Du n°</span>
+                <input
+                  value={batchFrom}
+                  onChange={(e) => setBatchFrom(e.target.value)}
+                  placeholder="200"
+                  className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                />
+              </label>
+              <label className="flex-1">
+                <span className="text-xs font-medium text-zinc-500">Au n°</span>
+                <input
+                  value={batchTo}
+                  onChange={(e) => setBatchTo(e.target.value)}
+                  placeholder="250"
+                  className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                />
+              </label>
+            </div>
+          )}
+
           <label className="block">
             <span className="text-xs font-medium text-zinc-500">Modèle</span>
             <input
@@ -172,7 +262,11 @@ export default function MachinesPage() {
             disabled={saving}
             className="min-h-11 w-full rounded-xl bg-[var(--cr-blue)] text-sm font-semibold text-white disabled:opacity-60"
           >
-            {saving ? "…" : "Créer en base"}
+            {saving
+              ? "…"
+              : addMode === "batch"
+                ? `Créer le lot (#${batchFrom || "?"} → #${batchTo || "?"})`
+                : "Créer en base"}
           </button>
         </form>
       </SimpleModal>

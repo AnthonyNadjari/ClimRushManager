@@ -70,6 +70,9 @@ export default function PlanningPage() {
     client: "",
     machines: "1",
     type: "saison" as "hebdo" | "mensuel" | "saison",
+    createDelivery: true,
+    address: "",
+    phone: "",
   });
 
   function openReserve(day: number | null) {
@@ -82,6 +85,9 @@ export default function PlanningPage() {
         client: "",
         machines: "1",
         type: "saison",
+        createDelivery: true,
+        address: "",
+        phone: "",
       });
     }
     setReserveOpen(true);
@@ -106,12 +112,24 @@ export default function PlanningPage() {
           type: form.type,
         }),
       });
+      if (form.createDelivery) {
+        await apiJson("/api/field-tasks", {
+          method: "POST",
+          body: JSON.stringify({
+            mode: "livraison",
+            clientLabel: form.client.trim() || "Client",
+            address: form.address.trim(),
+            phone: form.phone.trim(),
+            qty: n,
+          }),
+        });
+      }
       await apiJson("/api/activity", {
         method: "POST",
         body: JSON.stringify({
           kind: "ok",
           title: "Réservation",
-          subtitle: `${form.client.trim() || "Client"} — ${n} mach. — ${form.type} — ${form.date}`,
+          subtitle: `${form.client.trim() || "Client"} — ${n} mach. — ${form.type} — ${form.date}${form.createDelivery ? " + livraison créée" : ""}`,
           time: "À l’instant",
         }),
       });
@@ -327,12 +345,66 @@ export default function PlanningPage() {
                       <option value="saison">Saison</option>
                     </select>
                   </label>
+                  <label className="flex items-center gap-2 py-1">
+                    <input
+                      type="checkbox"
+                      checked={form.createDelivery}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          createDelivery: e.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-zinc-300"
+                    />
+                    <span className="text-sm font-medium text-zinc-700">
+                      Créer aussi la livraison
+                    </span>
+                  </label>
+
+                  {form.createDelivery && (
+                    <>
+                      <label className="block">
+                        <span className="text-xs font-medium text-zinc-500">
+                          Adresse de livraison
+                        </span>
+                        <input
+                          type="text"
+                          value={form.address}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, address: e.target.value }))
+                          }
+                          placeholder="ex. 12 rue des Archives, 75004 Paris"
+                          className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-medium text-zinc-500">
+                          Téléphone sur site
+                        </span>
+                        <input
+                          type="tel"
+                          value={form.phone}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, phone: e.target.value }))
+                          }
+                          placeholder="ex. +33612345678"
+                          className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                        />
+                      </label>
+                    </>
+                  )}
+
                   <button
                     type="submit"
                     disabled={saving}
                     className="min-h-12 w-full rounded-xl bg-[var(--cr-blue)] text-sm font-semibold text-white disabled:opacity-60"
                   >
-                    {saving ? "…" : "Enregistrer en base"}
+                    {saving
+                      ? "…"
+                      : form.createDelivery
+                        ? "Réserver + créer livraison"
+                        : "Enregistrer en base"}
                   </button>
                 </form>
               </div>
