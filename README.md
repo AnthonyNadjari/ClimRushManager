@@ -55,10 +55,12 @@ Un `vercel.json` à la **racine du dépôt** existe aussi pour les cas où la ra
 
 Le **build** peut réussir **sans** `DATABASE_URL` (les migrations sont alors ignorées avec un avertissement dans les logs). Pour que l’app soit **utilisable** (dashboard, machines, etc.), il faut une base :
 
-1. **Storage** (ou intégration **Neon** / autre Postgres) depuis le dashboard Vercel, **ou**
-2. **Settings → Environment Variables** : **`DATABASE_URL`** pour **Production** et **Preview**, par ex. `postgresql://…?sslmode=require`.
+1. **Storage** (ou intégration **Neon** / **Supabase** / autre Postgres) depuis le dashboard Vercel, **ou**
+2. **Settings → Environment Variables** : **`DATABASE_URL`** pour **Production** et **Preview**. Avec **Supabase**, utiliser de préférence l’URI du **pooler « session »** (port **5432**, hôte `*.pooler.supabase.com`, utilisateur `postgres.<project_ref>`) — voir `web/.env.example`.
 
 Puis **Redeploy** une fois la variable ajoutée pour exécuter `prisma migrate deploy`.
+
+**Déjà configuré sur ce dépôt** : projet Supabase **`climrush-manager`** + `DATABASE_URL` sur Vercel. Pour le dev local avec la même base : `cd web && npx vercel env pull` (crée `.env.local`, non versionné).
 
 ### 3. Seed (une fois)
 
