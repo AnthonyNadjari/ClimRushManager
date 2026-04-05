@@ -5,8 +5,7 @@ import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import type { ActivityItem } from "@/lib/types";
 
 type Kpi = {
-  caJourHt: number;
-  caJourRentals: number;
+  caLocationJourHt: number;
   dispo: number;
   stockTotal: number;
   louees: number;
@@ -79,9 +78,9 @@ export default function DashboardPage() {
       <section className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <KpiCard
           tone="blue"
-          label="CA du jour (est.)"
-          value={`${KPI.caJourHt.toLocaleString("fr-FR")} €`}
-          hint={`+${KPI.caJourRentals} loc.`}
+          label="Recette loc. jour (HT)"
+          value={`${KPI.caLocationJourHt.toLocaleString("fr-FR")} €`}
+          hint={`${KPI.louees} machine(s) louée(s) — loyer journalier agrégé`}
         />
         <KpiCard
           tone="green"
@@ -103,36 +102,27 @@ export default function DashboardPage() {
         />
       </section>
 
-      <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-zinc-600">
-        <span className="rounded-full bg-white px-3 py-1.5 ring-1 ring-zinc-200">
-          Reprises : {KPI.reprises}
-        </span>
-        <span className="rounded-full bg-white px-3 py-1.5 ring-1 ring-zinc-200">
-          SAV : {KPI.sav}
-        </span>
-        <span className="rounded-full bg-white px-3 py-1.5 ring-1 ring-zinc-200">
-          Amorties : {KPI.amorties}
-        </span>
-      </div>
-
       <section className="mt-6">
         <h2 className="text-xs font-bold tracking-widest text-zinc-400">
           FIL D’ACTUALITÉ
         </h2>
         <ul className="mt-3 space-y-3">
-          {data.activity.map((item) => (
-            <li
-              key={item.id}
-              className="flex gap-3 rounded-2xl border border-zinc-100 bg-white p-3 shadow-sm"
-            >
-              <ActivityIcon kind={item.kind} />
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-zinc-900">{item.title}</p>
-                <p className="text-sm text-zinc-600">{item.subtitle}</p>
-                <p className="mt-1 text-xs text-zinc-400">{item.time}</p>
-              </div>
-            </li>
-          ))}
+          {data.activity.map((item) => {
+            const v = activityVisual(item);
+            return (
+              <li
+                key={item.id}
+                className={`flex gap-3 rounded-2xl border border-zinc-100 border-l-4 ${v.border} bg-white p-3 shadow-sm`}
+              >
+                <ActivityIcon item={item} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-zinc-900">{item.title}</p>
+                  <p className="text-sm text-zinc-600">{item.subtitle}</p>
+                  <p className="mt-1 text-xs text-zinc-400">{item.time}</p>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </div>
@@ -171,16 +161,38 @@ function KpiCard({
   );
 }
 
-function ActivityIcon({ kind }: { kind: ActivityItem["kind"] }) {
-  const base =
-    "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold";
-  if (kind === "ok")
-    return <span className={`${base} bg-emerald-100 text-emerald-800`}>OK</span>;
-  if (kind === "sms")
-    return <span className={`${base} bg-teal-100 text-teal-800`}>SMS</span>;
-  if (kind === "pay")
-    return <span className={`${base} bg-amber-100 text-amber-900`}>PAY</span>;
-  if (kind === "ret")
-    return <span className={`${base} bg-blue-100 text-blue-800`}>RET</span>;
-  return <span className={`${base} bg-violet-100 text-violet-800`}>AMO</span>;
+function activityVisual(item: ActivityItem) {
+  const blob = `${item.title} ${item.subtitle}`.toLowerCase();
+  if (item.kind === "pay" || blob.includes("paiement")) {
+    return { border: "border-l-amber-400", ring: "bg-amber-50", emoji: "💵" };
+  }
+  if (
+    blob.includes("livr") ||
+    blob.includes("livraison") ||
+    blob.includes("livré")
+  ) {
+    return { border: "border-l-emerald-500", ring: "bg-emerald-50", emoji: "🚚" };
+  }
+  if (item.kind === "sms") {
+    return { border: "border-l-sky-500", ring: "bg-sky-50", emoji: "📱" };
+  }
+  if (item.kind === "ret") {
+    return { border: "border-l-blue-500", ring: "bg-blue-50", emoji: "↩️" };
+  }
+  if (item.kind === "amo") {
+    return { border: "border-l-violet-500", ring: "bg-violet-50", emoji: "📉" };
+  }
+  return { border: "border-l-teal-500", ring: "bg-teal-50", emoji: "✅" };
+}
+
+function ActivityIcon({ item }: { item: ActivityItem }) {
+  const v = activityVisual(item);
+  return (
+    <span
+      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl shadow-sm ring-1 ring-black/5 ${v.ring}`}
+      aria-hidden
+    >
+      {v.emoji}
+    </span>
+  );
 }

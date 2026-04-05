@@ -74,6 +74,16 @@ export function serializeClient(c: ClientWithMachines): ClientRow {
   };
 }
 
+export function parseMachineIdsJson(raw: string | null | undefined): string[] {
+  try {
+    const v = JSON.parse(raw || "[]") as unknown;
+    if (!Array.isArray(v)) return [];
+    return v.map((x) => String(x).trim()).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 export function serializeFieldTask(t: PFieldTask): FieldTask {
   return {
     id: t.id,
@@ -85,6 +95,8 @@ export function serializeFieldTask(t: PFieldTask): FieldTask {
     timeNote: t.timeNote ?? undefined,
     upsell: t.upsell ?? undefined,
     extraNote: t.extraNote ?? undefined,
+    truckLabel: t.truckLabel ?? "Tous",
+    machineIds: parseMachineIdsJson(t.machineIdsJson),
   };
 }
 

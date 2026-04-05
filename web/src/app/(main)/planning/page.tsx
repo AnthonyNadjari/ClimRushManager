@@ -21,6 +21,7 @@ function toIsoDate(day: number) {
 type ReservationRow = {
   id: string;
   date: string;
+  endDate: string | null;
   client: string;
   machines: number;
   type: string;
@@ -40,6 +41,7 @@ export default function PlanningPage() {
   const { data: allClients } = useSWR<ClientRow[]>("/api/clients", fetcher);
 
   const [view, setView] = useState<"month" | "week">("month");
+  const [weekIndex, setWeekIndex] = useState(0);
   const [reserveOpen, setReserveOpen] = useState(false);
   const [prefillDay, setPrefillDay] = useState<number | null>(null);
   const [portalReady, setPortalReady] = useState(false);
@@ -69,8 +71,15 @@ export default function PlanningPage() {
     return m;
   }, [reservations]);
 
+  const weekStartDay = 1 + weekIndex * 7;
+  const weekCells = Array.from({ length: 7 }, (_, i) => {
+    const d = weekStartDay + i;
+    return d <= 30 ? d : null;
+  });
+
   const [form, setForm] = useState({
     date: toIsoDate(1),
+    endDate: toIsoDate(7),
     client: "",
     machines: "1",
     type: "saison" as "hebdo" | "mensuel" | "saison",
@@ -89,10 +98,16 @@ export default function PlanningPage() {
   function openReserve(day: number | null) {
     setPrefillDay(day);
     if (day != null) {
-      setForm((f) => ({ ...f, date: toIsoDate(day) }));
+      const end = Math.min(30, day + 6);
+      setForm((f) => ({
+        ...f,
+        date: toIsoDate(day),
+        endDate: toIsoDate(end),
+      }));
     } else {
       setForm({
         date: toIsoDate(1),
+        endDate: toIsoDate(7),
         client: "",
         machines: "1",
         type: "saison",
@@ -118,6 +133,7 @@ export default function PlanningPage() {
         method: "POST",
         body: JSON.stringify({
           date: form.date,
+          endDate: form.endDate || null,
           client: form.client.trim(),
           machines: n,
           type: form.type,
@@ -231,10 +247,76 @@ export default function PlanningPage() {
           </div>
         </>
       ) : (
-        <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-zinc-600 shadow-sm ring-1 ring-zinc-100">
-          Vue semaine : à agréger comme la vue mois (données calendrier
-          indicatives).
-        </div>
+        <>
+          <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-zinc-100">
+            <button
+              type="button"
+              disabled={weekIndex <= 0}
+              onClick={() => setWeekIndex((w) => w - 1)}
+              className="rounded-lg px-2 py-1 font-semibold text-zinc-700 disabled:opacity-40"
+            >
+              ◀
+            </button>
+            <span className="text-center font-medium text-zinc-700">
+              Semaine du {weekStartDay} au {Math.min(30, weekStartDay + 6)}{" "}
+              juin 2026
+            </span>
+            <button
+              type="button"
+              disabled={weekIndex >= 4}
+              onClick={() => setWeekIndex((w) => w + 1)}
+              className="rounded-lg px-2 py-1 font-semibold text-zinc-700 disabled:opacity-40"
+            >
+              ▶
+            </button>
+          </div>
+          <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-zinc-500">
+            {weekDays.map((d, i) => (
+              <span key={`${d}-wk-${i}`}>
+                {d}
+                {weekCells[i] != null ? ` ${weekCells[i]}` : ""}
+              </span>
+            ))}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-1">
+            {weekCells.map((d, i) =>
+              d == null ? (
+                <div key={`e-${i}`} />
+              ) : (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => openReserve(d)}
+                  className="flex min-h-[6rem] flex-col items-center rounded-xl bg-white p-1.5 text-xs shadow-sm ring-1 ring-zinc-100 transition-colors hover:bg-zinc-50"
+                >
+                  <span className="text-sm font-bold text-zinc-900">{d}</span>
+                  <span className="mt-1 flex flex-col items-center text-[11px] font-bold tabular-nums leading-snug">
+                    <span className="text-red-600" title="Louées">
+                      {days[d - 1].lou}
+                    </span>
+                    <span className="text-emerald-600" title="Dispo">
+                      {days[d - 1].dis}
+                    </span>
+                    <span className="text-amber-600" title="Livrées">
+                      {days[d - 1].liv}
+                    </span>
+                    <span className="text-blue-600" title="Retournées">
+                      {days[d - 1].ret}
+                    </span>
+                  </span>
+                  {resaByDay[d] ? (
+                    <span className="mt-auto pt-1 text-[9px] font-semibold text-blue-600">
+                      {resaByDay[d]} résa
+                    </span>
+                  ) : null}
+                </button>
+              ),
+            )}
+          </div>
+          <p className="mt-2 text-center text-[10px] text-zinc-500">
+            Colonne : louées, dispo, livrées, retournées (vue démo indicative).
+          </p>
+        </>
       )}
 
       <div className="mt-4 rounded-2xl border border-zinc-100 bg-white p-4 text-sm">
@@ -305,6 +387,19 @@ export default function PlanningPage() {
                       value={form.date}
                       onChange={(e) =>
                         setForm((f) => ({ ...f, date: e.target.value }))
+                      }
+                      className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-zinc-500">
+                      Date de fin
+                    </span>
+                    <input
+                      type="date"
+                      value={form.endDate}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, endDate: e.target.value }))
                       }
                       className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
                     />

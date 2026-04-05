@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import type { ClientRow, ClientStatus, Machine } from "@/lib/types";
 import { clientsToCsv, triggerDownload } from "@/lib/csv";
@@ -30,6 +30,11 @@ export default function ClientsPage() {
 
   const [q, setQ] = useState("");
   const [tab, setTab] = useState<"all" | ClientStatus>("all");
+
+  useEffect(() => {
+    const q0 = new URLSearchParams(window.location.search).get("q");
+    if (q0) setQ(q0);
+  }, []);
   const [fiche, setFiche] = useState<ClientRow | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");

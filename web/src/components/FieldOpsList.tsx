@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FieldTask } from "@/lib/types";
 import { MachineNumberModal } from "./MachineNumberModal";
 import { SimpleModal } from "./SimpleModal";
@@ -8,6 +8,8 @@ import { apiJson } from "@/lib/api-client";
 import { smsDraftHref, terrainSmsBody } from "@/lib/sms-draft";
 
 type Mode = "livraison" | "reprise";
+
+const TRUCK_TABS = ["Tous", "Camion Alex", "Camion Matéo"] as const;
 
 const statusConfig = {
   livraison: {
@@ -28,8 +30,8 @@ const statusConfig = {
   },
 } as const;
 
-function mapsUrl(address: string) {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+function appleMapsUrl(address: string) {
+  return `https://maps.apple.com/?daddr=${encodeURIComponent(address)}`;
 }
 
 type RouteOptimizeResult = {
@@ -38,6 +40,16 @@ type RouteOptimizeResult = {
   totalDistanceM: number;
   summary: { durationLabel: string; distanceKm: string };
   source: string;
+};
+
+type MultiRouteRow = {
+  truckLabel: string;
+  skipped: boolean;
+  message?: string;
+  orderedAddresses: string[];
+  summary?: { durationLabel: string; distanceKm: string };
+  source?: string;
+  single?: boolean;
 };
 
 type Props = {
@@ -58,27 +70,99 @@ export function FieldOpsList({
   enableRouteOptimize,
 }: Props) {
   const [filter, setFilter] = useState<"all" | FieldTask["status"]>("all");
+  const [activeTruck, setActiveTruck] = useState<string>("Tous");
   const [machineModalOpen, setMachineModalOpen] = useState(false);
+  const [machineIdsEditTask, setMachineIdsEditTask] =
+    useState<FieldTask | null>(null);
+  const [recapTask, setRecapTask] = useState<FieldTask | null>(null);
   const [upsellTask, setUpsellTask] = useState<FieldTask | null>(null);
   const [routeOpen, setRouteOpen] = useState(false);
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeData, setRouteData] = useState<RouteOptimizeResult | null>(null);
+  const [multiRouteOpen, setMultiRouteOpen] = useState(false);
+  const [multiRoutes, setMultiRoutes] = useState<MultiRouteRow[] | null>(null);
+
+  const truckTabs = useMemo(() => {
+    const preset = new Set<string>(TRUCK_TABS);
+    const extra = new Set<string>();
+    for (const t of tasks) {
+      if (t.truckLabel && !preset.has(t.truckLabel)) {
+        extra.add(t.truckLabel);
+      }
+    }
+    return [...TRUCK_TABS, ...Array.from(extra).sort()];
+  }, [tasks]);
+
+  const displayTasks = useMemo(() => {
+    const byTruck =
+      activeTruck === "Tous"
+        ? tasks
+        : tasks.filter((t) => (t.truckLabel || "Tous") === activeTruck);
+    return byTruck;
+  }, [tasks, activeTruck]);
 
   const counts = useMemo(() => {
     return {
-      done: tasks.filter((t) => t.status === "done").length,
-      in_progress: tasks.filter((t) => t.status === "in_progress").length,
-      pending: tasks.filter((t) => t.status === "pending").length,
+      done: displayTasks.filter((t) => t.status === "done").length,
+      in_progress: displayTasks.filter((t) => t.status === "in_progress")
+        .length,
+      pending: displayTasks.filter((t) => t.status === "pending").length,
     };
-  }, [tasks]);
+  }, [displayTasks]);
 
   const filtered = useMemo(() => {
-    if (filter === "all") return tasks;
-    return tasks.filter((t) => t.status === filter);
-  }, [tasks, filter]);
+    if (filter === "all") return displayTasks;
+    return displayTasks.filter((t) => t.status === filter);
+  }, [displayTasks, filter]);
 
   async function runRouteOptimize() {
-    const addrs = tasks
+    if (activeTruck === "Tous") {
+      const byTruck = new Map<string, string[]>();
+      for (const t of tasks.filter((x) => x.status !== "done")) {
+        const k = t.truckLabel || "Tous";
+        if (!byTruck.has(k)) byTruck.set(k, []);
+        byTruck.get(k)!.push(t.address);
+      }
+      const groups = Array.from(byTruck.entries()).map(
+        ([truckLabel, addresses]) => ({
+          truckLabel,
+          addresses,
+        }),
+      );
+      if (groups.length === 0) {
+        alert("Aucune tâche active à optimiser.");
+        return;
+      }
+      const allSingle = groups.every((g) => g.addresses.length <= 1);
+      if (allSingle && groups.some((g) => g.addresses.length === 0)) {
+        alert("Ajoutez des arrêts actifs par camion pour l’optimisation.");
+        return;
+      }
+      setRouteLoading(true);
+      setMultiRoutes(null);
+      try {
+        const data = await apiJson<{ routes: MultiRouteRow[] }>(
+          "/api/route-optimize",
+          {
+            method: "POST",
+            body: JSON.stringify({ byTruck: groups }),
+          },
+        );
+        setMultiRoutes(data.routes);
+        setMultiRouteOpen(true);
+      } catch (e) {
+        alert(
+          e instanceof Error
+            ? e.message.slice(0, 500)
+            : "Optimisation impossible (réseau, géocodage ou quota).",
+        );
+      } finally {
+        setRouteLoading(false);
+      }
+      return;
+    }
+
+    const addrs = displayTasks
       .filter((t) => t.status !== "done")
       .map((t) => t.address);
     if (addrs.length < 2) {
@@ -116,13 +200,30 @@ export function FieldOpsList({
         <p className="text-sm text-zinc-500">{subtitle}</p>
       </header>
 
+      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {truckTabs.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTruck(tab)}
+            className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-bold ring-1 transition-colors ${
+              activeTruck === tab
+                ? "bg-[var(--cr-blue)] text-white ring-[var(--cr-blue)]"
+                : "bg-white text-zinc-700 ring-zinc-200 hover:bg-zinc-50"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
       <button
         type="button"
         onClick={() => setMachineModalOpen(true)}
         className="mt-4 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-[var(--cr-blue)] text-base font-semibold text-white shadow-md shadow-blue-500/25 active:scale-[0.99]"
       >
         <span className="text-xl leading-none">#</span>
-        Saisir n° machine
+        Saisir n° machine (vérif. stock)
       </button>
 
       <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -130,7 +231,7 @@ export function FieldOpsList({
           active={filter === "all"}
           onClick={() => setFilter("all")}
           label="Tout"
-          count={tasks.length}
+          count={displayTasks.length}
         />
         <FilterChip
           active={filter === "done"}
@@ -168,26 +269,32 @@ export function FieldOpsList({
               key={task.id}
               className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm"
             >
-              <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${cfg.className}`}
                 >
                   {cfg.label}
                 </span>
-                {task.qty > 1 ? (
-                  <span className="text-sm font-semibold text-zinc-700">
-                    ×{task.qty}
+                <span className="ml-auto shrink-0 rounded-xl bg-zinc-900 px-3 py-2 text-center text-lg font-black leading-none text-white tabular-nums shadow-sm">
+                  {task.qty}
+                  <span className="block text-[10px] font-semibold uppercase tracking-wide opacity-90">
+                    clim{task.qty > 1 ? "s" : ""}
                   </span>
-                ) : null}
+                </span>
               </div>
-              <p className="mt-2 text-base font-bold text-zinc-900">
+
+              <button
+                type="button"
+                onClick={() => setRecapTask(task)}
+                className="mt-3 w-full text-left text-base font-bold text-zinc-900 underline-offset-2 hover:underline"
+              >
                 {task.clientLabel}
-              </p>
+              </button>
               <a
-                href={mapsUrl(task.address)}
+                href={appleMapsUrl(task.address)}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-1 block text-sm leading-snug text-zinc-600 underline decoration-zinc-300 underline-offset-2"
+                className="mt-1 block text-sm leading-snug text-sky-700 underline decoration-sky-300 underline-offset-2"
               >
                 {task.address}
               </a>
@@ -197,6 +304,38 @@ export function FieldOpsList({
               >
                 {task.phone}
               </a>
+
+              {(task.machineIds.length > 0 ||
+                (task.status === "pending" || task.status === "in_progress")) && (
+                <div className="mt-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    N° unités (camion)
+                  </p>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {task.machineIds.map((id) => (
+                      <button
+                        key={`${task.id}-${id}`}
+                        type="button"
+                        onClick={() => setMachineIdsEditTask(task)}
+                        className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white active:scale-[0.98]"
+                      >
+                        #{id}
+                      </button>
+                    ))}
+                    {(task.status === "pending" ||
+                      task.status === "in_progress") && (
+                      <button
+                        type="button"
+                        onClick={() => setMachineIdsEditTask(task)}
+                        className="rounded-lg border-2 border-dashed border-emerald-400 px-2.5 py-1 text-xs font-bold text-emerald-800"
+                      >
+                        + N°
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {task.timeNote ? (
                 <p className="mt-2 text-xs text-zinc-500">{task.timeNote}</p>
               ) : null}
@@ -209,7 +348,7 @@ export function FieldOpsList({
               <div className="mt-4 flex flex-wrap gap-2">
                 {task.status === "pending" || task.status === "in_progress" ? (
                   <a
-                    href={mapsUrl(task.address)}
+                    href={appleMapsUrl(task.address)}
                     target="_blank"
                     rel="noreferrer"
                     className={`inline-flex min-h-[48px] min-w-[88px] items-center justify-center rounded-xl px-4 text-sm font-bold ${
@@ -218,7 +357,7 @@ export function FieldOpsList({
                         : "bg-[var(--cr-blue)] text-white"
                     }`}
                   >
-                    GPS
+                    Plans
                   </a>
                 ) : null}
                 {task.status === "in_progress" ? (
@@ -256,7 +395,7 @@ export function FieldOpsList({
                     onClick={() => setMachineModalOpen(true)}
                     className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white"
                   >
-                    N° machine
+                    Vérifier n° (stock)
                   </button>
                 ) : null}
                 {task.status === "in_progress" ? (
@@ -274,10 +413,10 @@ export function FieldOpsList({
 
       {enableRouteOptimize ? (
         <div className="mt-4 rounded-2xl bg-blue-50 px-4 py-3 text-sm text-blue-900">
-          <p className="font-semibold">Optimisation d’itinéraire (OSRM)</p>
+          <p className="font-semibold">Itinéraire optimisé (OSRM)</p>
           <p className="text-blue-800/90">
-            Géocodage Nominatim + ordre de passage via OSRM (public). Prévoir{" "}
-            ~1,1 s par adresse pour le géocodage.
+            Un passage par camion si « Tous » est sélectionné ; sinon uniquement
+            le camion actif. Géocodage Nominatim (~1,1 s / adresse).
           </p>
           <button
             type="button"
@@ -285,7 +424,11 @@ export function FieldOpsList({
             onClick={() => void runRouteOptimize()}
             className="mt-3 min-h-10 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white disabled:opacity-60"
           >
-            {routeLoading ? "Calcul…" : "Calculer l’ordre de passage"}
+            {routeLoading
+              ? "Calcul…"
+              : activeTruck === "Tous"
+                ? "Optimiser tous les camions"
+                : "Calculer l’ordre de passage"}
           </button>
         </div>
       ) : null}
@@ -304,6 +447,17 @@ export function FieldOpsList({
           </ol>
         </section>
       ) : null}
+
+      <TaskRecapModal task={recapTask} onClose={() => setRecapTask(null)} />
+
+      <TaskMachineIdsModal
+        task={machineIdsEditTask}
+        onClose={() => setMachineIdsEditTask(null)}
+        onSaved={() => {
+          onRefresh();
+          setMachineIdsEditTask(null);
+        }}
+      />
 
       <UpsellOfferModal
         task={upsellTask}
@@ -332,11 +486,193 @@ export function FieldOpsList({
         ) : null}
       </SimpleModal>
 
+      <SimpleModal
+        open={multiRouteOpen}
+        onClose={() => setMultiRouteOpen(false)}
+        title="Itinéraires par camion"
+      >
+        {multiRoutes && multiRoutes.length > 0 ? (
+          <div className="max-h-[60vh] space-y-5 overflow-y-auto text-sm">
+            {multiRoutes.map((r) => (
+              <div
+                key={r.truckLabel}
+                className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-3"
+              >
+                <p className="font-bold text-zinc-900">{r.truckLabel}</p>
+                {r.skipped ? (
+                  <p className="mt-1 text-xs text-amber-800">
+                    {r.message ?? "Passage non calculé"}
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {r.summary
+                        ? `${r.summary.durationLabel} — ~${r.summary.distanceKm} km`
+                        : null}
+                      {r.source ? ` · ${r.source}` : null}
+                    </p>
+                    <ol className="mt-2 list-decimal space-y-1 pl-4">
+                      {r.orderedAddresses.map((a, i) => (
+                        <li key={`${r.truckLabel}-${i}`}>{a}</li>
+                      ))}
+                    </ol>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </SimpleModal>
+
       <MachineNumberModal
         open={machineModalOpen}
         onClose={() => setMachineModalOpen(false)}
       />
     </div>
+  );
+}
+
+function TaskRecapModal({
+  task,
+  onClose,
+}: {
+  task: FieldTask | null;
+  onClose: () => void;
+}) {
+  const open = task != null;
+  const parts = task?.clientLabel.trim().split(/\s+/) ?? [];
+  const prenom = parts[0] || "—";
+  const nom = parts.slice(1).join(" ") || "—";
+  const today = new Date().toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  return (
+    <SimpleModal open={open} onClose={onClose} title="Récap commande">
+      {task ? (
+        <dl className="space-y-2 text-sm text-zinc-800">
+          <div>
+            <dt className="text-xs font-medium text-zinc-500">Prénom</dt>
+            <dd className="font-semibold">{prenom}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium text-zinc-500">Nom</dt>
+            <dd className="font-semibold">{nom}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium text-zinc-500">Adresse</dt>
+            <dd>{task.address}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium text-zinc-500">Téléphone</dt>
+            <dd>
+              <a
+                className="text-[var(--cr-blue)]"
+                href={`tel:${task.phone.replace(/\s/g, "")}`}
+              >
+                {task.phone}
+              </a>
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium text-zinc-500">Date (jour)</dt>
+            <dd>{today}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium text-zinc-500">Nb clim</dt>
+            <dd className="text-lg font-bold">{task.qty}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium text-zinc-500">Upsell</dt>
+            <dd>{task.upsell ?? task.extraNote ?? "—"}</dd>
+          </div>
+        </dl>
+      ) : null}
+    </SimpleModal>
+  );
+}
+
+function TaskMachineIdsModal({
+  task,
+  onClose,
+  onSaved,
+}: {
+  task: FieldTask | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const open = task != null;
+  const [raw, setRaw] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (task && open) setRaw(task.machineIds.join(", "));
+  }, [task, open]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!task) return;
+    const ids = raw
+      .split(/[,;\s]+/)
+      .map((s) => s.replace(/^#/, "").trim())
+      .filter(Boolean);
+    setSaving(true);
+    try {
+      await apiJson(`/api/field-tasks/${task.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ machineIds: ids }),
+      });
+      await apiJson("/api/activity", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: "ok",
+          title: "N° machines terrain",
+          subtitle: `${task.clientLabel} — ${ids.map((i) => `#${i}`).join(", ") || "aucun"}`,
+          time: "À l’instant",
+        }),
+      });
+      onSaved();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SimpleModal
+      open={open}
+      onClose={onClose}
+      title="Numéros de machines (livraison / reprise)"
+    >
+      {task ? (
+        <form onSubmit={submit} className="space-y-3">
+          <p className="text-xs text-zinc-500">
+            Saisissez plusieurs numéros séparés par une virgule ou un espace.
+          </p>
+          <label className="block">
+            <span className="text-xs font-medium text-zinc-500">N° unités</span>
+            <textarea
+              value={raw}
+              onChange={(e) => setRaw(e.target.value)}
+              rows={3}
+              className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-[var(--cr-blue)]"
+              placeholder="ex. 12, 198, 302"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={saving}
+            className="min-h-12 w-full rounded-xl bg-emerald-600 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {saving ? "…" : "Enregistrer"}
+          </button>
+        </form>
+      ) : null}
+    </SimpleModal>
   );
 }
 

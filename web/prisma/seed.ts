@@ -161,6 +161,8 @@ async function main() {
         qty: 2,
         status: FieldTaskStatus.done,
         timeNote: "Livré 09:42",
+        truckLabel: "Tous",
+        machineIdsJson: "[\"12\",\"198\"]",
         sortOrder: 0,
       },
       {
@@ -171,6 +173,8 @@ async function main() {
         phone: "+33698765432",
         qty: 1,
         status: FieldTaskStatus.in_progress,
+        truckLabel: "Camion Alex",
+        machineIdsJson: "[\"201\"]",
         sortOrder: 1,
       },
       {
@@ -182,6 +186,8 @@ async function main() {
         qty: 3,
         status: FieldTaskStatus.in_progress,
         upsell: "Upsell +",
+        truckLabel: "Camion Alex",
+        machineIdsJson: "[]",
         sortOrder: 2,
       },
       {
@@ -192,6 +198,8 @@ async function main() {
         phone: "+33611223344",
         qty: 5,
         status: FieldTaskStatus.pending,
+        truckLabel: "Camion Matéo",
+        machineIdsJson: "[]",
         sortOrder: 3,
       },
       {
@@ -204,6 +212,8 @@ async function main() {
         status: FieldTaskStatus.done,
         timeNote: "Récupéré 10:15 — Photo OK",
         extraNote: "Email promo envoyé",
+        truckLabel: "Camion Alex",
+        machineIdsJson: "[\"47\"]",
         sortOrder: 0,
       },
       {
@@ -214,6 +224,8 @@ async function main() {
         phone: "+33677889900",
         qty: 4,
         status: FieldTaskStatus.in_progress,
+        truckLabel: "Camion Alex",
+        machineIdsJson: "[]",
         sortOrder: 1,
       },
       {
@@ -224,6 +236,8 @@ async function main() {
         phone: "+33644556677",
         qty: 1,
         status: FieldTaskStatus.in_progress,
+        truckLabel: "Camion Matéo",
+        machineIdsJson: "[]",
         sortOrder: 2,
       },
       {
@@ -234,6 +248,8 @@ async function main() {
         phone: "+33633445566",
         qty: 2,
         status: FieldTaskStatus.pending,
+        truckLabel: "Camion Matéo",
+        machineIdsJson: "[]",
         sortOrder: 3,
       },
     ],

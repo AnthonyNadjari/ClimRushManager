@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { FieldMode, FieldTaskStatus } from "@prisma/client";
+import {
+  FieldMode,
+  FieldTaskStatus,
+  MachineStatus,
+} from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { serializeActivity, serializeMachine } from "@/lib/serializers";
 
@@ -36,11 +40,14 @@ export async function GET() {
       machines.reduce((s, m) => s + m.cumulativeRevenueHt, 0),
     );
     const objectifCaHt = 262_500;
-    const caJourHt = Math.max(1, Math.round(caSaisonHt / 110));
+    const caLocationJourHt = Math.round(
+      machines
+        .filter((m) => m.status === MachineStatus.LOUE)
+        .reduce((s, m) => s + serializeMachine(m).avgDailyRevenueHt, 0),
+    );
 
     const kpi = {
-      caJourHt,
-      caJourRentals: Math.min(8, livraisonsRestantes + 1),
+      caLocationJourHt,
       dispo,
       stockTotal,
       louees,

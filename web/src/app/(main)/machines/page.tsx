@@ -7,7 +7,6 @@ import type { MachineStatus, Machine } from "@/lib/types";
 import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import { SimpleModal } from "@/components/SimpleModal";
 import { apiJson } from "@/lib/api-client";
-import { MACHINE_MODELS, DEFAULT_MACHINE_MODEL, type MachineModelName } from "@/lib/constants";
 
 const statusLabels: Record<MachineStatus, string> = {
   DISPO: "DISPO",
@@ -38,14 +37,11 @@ export default function MachinesPage() {
   );
 
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<"all" | MachineStatus | "louee">("all");
-  const [lotFilter, setLotFilter] = useState<string>("all");
-  const [viewMode, setViewMode] = useState<"list" | "lot">("list");
+  const [filter, setFilter] = useState<"all" | MachineStatus>("all");
   const [addOpen, setAddOpen] = useState(false);
   const [addMode, setAddMode] = useState<"single" | "batch" | "list">("single");
   const [newId, setNewId] = useState("");
-  const [newModel, setNewModel] = useState<MachineModelName>(DEFAULT_MACHINE_MODEL);
-  const [newLot, setNewLot] = useState("Stock neuf — IDF");
+  const [newModel, setNewModel] = useState("12 000 BTU Monobloc");
   const [batchFrom, setBatchFrom] = useState("");
   const [batchTo, setBatchTo] = useState("");
   const [batchCustom, setBatchCustom] = useState("");
@@ -54,13 +50,10 @@ export default function MachinesPage() {
 
   const stockTotal = machines?.length ?? 0;
   const louees = machines?.filter((m) => m.status === "LOUE").length ?? 0;
-  const amorties = machines?.filter((m) => m.amortized).length ?? 0;
-  const amortPct = stockTotal > 0 ? (amorties / stockTotal) * 100 : 0;
-
-  const uniqueLots = useMemo(() => {
-    if (!machines) return [];
-    return Array.from(new Set(machines.map((m) => m.lot))).sort();
-  }, [machines]);
+  const dispoCount = machines?.filter((m) => m.status === "DISPO").length ?? 0;
+  const resaCount = machines?.filter((m) => m.status === "RESA").length ?? 0;
+  const livCount = machines?.filter((m) => m.status === "LIV").length ?? 0;
+  const savCount = machines?.filter((m) => m.status === "SAV").length ?? 0;
 
   const list = useMemo(() => {
     if (!machines) return [];
@@ -70,26 +63,10 @@ export default function MachinesPage() {
         m.id.includes(q.replace("#", "")) ||
         m.model.toLowerCase().includes(q.toLowerCase()) ||
         (m.clientName?.toLowerCase().includes(q.toLowerCase()) ?? false);
-      const matchF =
-        filter === "all"
-          ? true
-          : filter === "louee"
-            ? m.status === "LOUE"
-            : m.status === filter;
-      const matchLot = lotFilter === "all" || m.lot === lotFilter;
-      return matchQ && matchF && matchLot;
+      const matchF = filter === "all" ? true : m.status === filter;
+      return matchQ && matchF;
     });
-  }, [machines, q, filter, lotFilter]);
-
-  const groupedByLot = useMemo(() => {
-    const map = new Map<string, Machine[]>();
-    for (const m of list) {
-      const arr = map.get(m.lot) ?? [];
-      arr.push(m);
-      map.set(m.lot, arr);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
-  }, [list]);
+  }, [machines, q, filter]);
 
   async function submitAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -106,8 +83,7 @@ export default function MachinesPage() {
         method: "POST",
         body: JSON.stringify({
           id,
-          model: newModel,
-          lot: newLot,
+          model: newModel.trim() || "12 000 BTU Monobloc",
         }),
       });
       await apiJson("/api/activity", {
@@ -147,8 +123,7 @@ export default function MachinesPage() {
             from: lo,
             to: hi,
             exclude: batchExclude.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean),
-            model: newModel,
-            lot: newLot,
+            model: newModel.trim() || "12 000 BTU Monobloc",
           }),
         },
       );
@@ -185,7 +160,10 @@ export default function MachinesPage() {
         "/api/machines/batch",
         {
           method: "POST",
-          body: JSON.stringify({ ids, model: newModel, lot: newLot }),
+          body: JSON.stringify({
+            ids,
+            model: newModel.trim() || "12 000 BTU Monobloc",
+          }),
         },
       );
       await apiJson("/api/activity", {
@@ -330,21 +308,10 @@ export default function MachinesPage() {
 
           <label className="block">
             <span className="text-xs font-medium text-zinc-500">Modèle</span>
-            <select
-              value={newModel}
-              onChange={(e) => setNewModel(e.target.value as MachineModelName)}
-              className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-base outline-none focus:border-[var(--cr-blue)]"
-            >
-              {MACHINE_MODELS.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="text-xs font-medium text-zinc-500">Lot</span>
             <input
-              value={newLot}
-              onChange={(e) => setNewLot(e.target.value)}
+              value={newModel}
+              onChange={(e) => setNewModel(e.target.value)}
+              placeholder="Libellé libre (ex. 12 000 BTU Monobloc)"
               className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
             />
           </label>
@@ -371,126 +338,33 @@ export default function MachinesPage() {
         className="mt-4 min-h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-base outline-none focus:border-[var(--cr-blue)]"
       />
 
-      {/* Status filter pills */}
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <Pill
-          active={filter === "all"}
-          onClick={() => setFilter("all")}
-          label={`Toutes (${stockTotal})`}
-        />
-        <Pill
-          active={filter === "louee"}
-          onClick={() => setFilter("louee")}
-          label={`Louées (${louees})`}
-        />
-        <Pill
-          active={filter === "DISPO"}
-          onClick={() => setFilter("DISPO")}
-          label="Dispos"
-        />
-        <Pill
-          active={filter === "SAV"}
-          onClick={() => setFilter("SAV")}
-          label="SAV"
-        />
-      </div>
+      <label className="mt-3 block">
+        <span className="sr-only">Filtrer par statut</span>
+        <select
+          value={filter}
+          onChange={(e) =>
+            setFilter(e.target.value as "all" | MachineStatus)
+          }
+          className="min-h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-800 outline-none focus:border-[var(--cr-blue)]"
+        >
+          <option value="all">Toutes ({stockTotal})</option>
+          <option value="DISPO">Dispos ({dispoCount})</option>
+          <option value="LOUE">Louée ({louees})</option>
+          <option value="RESA">Résa ({resaCount})</option>
+          <option value="LIV">Livraison ({livCount})</option>
+          <option value="SAV">SAV ({savCount})</option>
+        </select>
+      </label>
 
-      {/* Lot filter + view toggle */}
-      <div className="mt-2 flex items-center gap-2">
-        <div className="flex flex-1 gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <button
-            type="button"
-            onClick={() => setLotFilter("all")}
-            className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium ${
-              lotFilter === "all"
-                ? "bg-zinc-800 text-white"
-                : "bg-zinc-100 text-zinc-600"
-            }`}
-          >
-            Tous lots
-          </button>
-          {uniqueLots.map((lot) => (
-            <button
-              key={lot}
-              type="button"
-              onClick={() => setLotFilter(lot === lotFilter ? "all" : lot)}
-              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium ${
-                lotFilter === lot
-                  ? "bg-zinc-800 text-white"
-                  : "bg-zinc-100 text-zinc-600"
-              }`}
-            >
-              {lot}
-            </button>
-          ))}
-        </div>
-        <div className="flex shrink-0 rounded-lg bg-zinc-200/80 p-0.5">
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${
-              viewMode === "list" ? "bg-white shadow-sm" : "text-zinc-600"
-            }`}
-          >
-            Liste
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("lot")}
-            className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${
-              viewMode === "lot" ? "bg-white shadow-sm" : "text-zinc-600"
-            }`}
-          >
-            Par lot
-          </button>
-        </div>
-      </div>
-
-      {/* Machine list */}
-      {viewMode === "list" ? (
-        <ul className="mt-3 flex flex-col gap-3">
-          {list.map((m) => (
-            <MachineRow
-              key={m.id}
-              machine={m}
-              onUpdated={() => void mutate()}
-            />
-          ))}
-        </ul>
-      ) : (
-        <div className="mt-3 space-y-4">
-          {groupedByLot.map(([lot, lotMachines]) => {
-            const dispo = lotMachines.filter((m) => m.status === "DISPO").length;
-            const loue = lotMachines.filter((m) => m.status === "LOUE").length;
-            const sav = lotMachines.filter((m) => m.status === "SAV").length;
-            const other = lotMachines.length - dispo - loue - sav;
-            return (
-              <LotGroup
-                key={lot}
-                lot={lot}
-                machines={lotMachines}
-                dispo={dispo}
-                loue={loue}
-                savCount={sav}
-                other={other}
-                onUpdated={() => void mutate()}
-              />
-            );
-          })}
-        </div>
-      )}
-
-      <div className="mt-4 rounded-2xl border border-violet-100 bg-violet-50/90 p-4">
-        <p className="text-sm font-semibold text-violet-900">
-          {amorties} machines amorties ({amortPct.toFixed(1)} % du parc)
-        </p>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-violet-200">
-          <div
-            className="h-full rounded-full bg-violet-600 transition-all"
-            style={{ width: `${Math.min(100, amortPct)}%` }}
+      <ul className="mt-3 flex flex-col gap-3">
+        {list.map((m) => (
+          <MachineRow
+            key={m.id}
+            machine={m}
+            onUpdated={() => void mutate()}
           />
-        </div>
-      </div>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -592,91 +466,3 @@ function MachineRow({
   );
 }
 
-function LotGroup({
-  lot,
-  machines: lotMachines,
-  dispo,
-  loue,
-  savCount,
-  other,
-  onUpdated,
-}: {
-  lot: string;
-  machines: Machine[];
-  dispo: number;
-  loue: number;
-  savCount: number;
-  other: number;
-  onUpdated: () => void;
-}) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left"
-      >
-        <span className="text-sm font-bold text-zinc-900">{lot}</span>
-        <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-semibold text-zinc-700">
-          {lotMachines.length}
-        </span>
-        <span className="flex-1" />
-        <span className="flex gap-1.5 text-[10px] font-semibold">
-          {dispo > 0 && (
-            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-800">
-              {dispo} dispo
-            </span>
-          )}
-          {loue > 0 && (
-            <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-800">
-              {loue} louée{loue > 1 ? "s" : ""}
-            </span>
-          )}
-          {savCount > 0 && (
-            <span className="rounded bg-red-50 px-1.5 py-0.5 text-red-700">
-              {savCount} SAV
-            </span>
-          )}
-          {other > 0 && (
-            <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-zinc-600">
-              {other} autre{other > 1 ? "s" : ""}
-            </span>
-          )}
-        </span>
-        <span className="text-xs text-zinc-400">{open ? "▼" : "▶"}</span>
-      </button>
-      {open && (
-        <ul className="flex flex-col gap-2 px-3 pb-3">
-          {lotMachines.map((m) => (
-            <MachineRow key={m.id} machine={m} onUpdated={onUpdated} />
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-function Pill({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold ring-1 ${
-        active
-          ? "bg-[var(--cr-blue)] text-white ring-[var(--cr-blue)]"
-          : "bg-white text-zinc-700 ring-zinc-200"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}

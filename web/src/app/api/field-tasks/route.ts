@@ -38,6 +38,8 @@ export async function POST(req: Request) {
       address?: string;
       phone?: string;
       qty?: number;
+      truckLabel?: string;
+      machineIds?: string[];
     };
     if (!body.clientLabel?.trim()) {
       return NextResponse.json({ error: "clientLabel requis" }, { status: 400 });
@@ -49,6 +51,10 @@ export async function POST(req: Request) {
       where: { mode: fm },
     });
     const id = `ft_${Date.now().toString(36)}`;
+    const machineIds =
+      body.machineIds
+        ?.map((s) => String(s).replace(/^#/, "").trim())
+        .filter(Boolean) ?? [];
     const row = await prisma.fieldTask.create({
       data: {
         id,
@@ -58,6 +64,9 @@ export async function POST(req: Request) {
         phone: body.phone?.trim() ?? "",
         qty: Math.max(1, body.qty ?? 1),
         status: "pending",
+        truckLabel: body.truckLabel?.trim() || "Tous",
+        machineIdsJson:
+          machineIds.length > 0 ? JSON.stringify(machineIds) : "[]",
         sortOrder: (max._max.sortOrder ?? 0) + 1,
       },
     });

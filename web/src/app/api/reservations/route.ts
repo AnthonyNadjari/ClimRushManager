@@ -30,6 +30,7 @@ export async function GET(req: Request) {
       rows.map((r) => ({
         id: r.id,
         date: r.date.toISOString().slice(0, 10),
+        endDate: r.endDate ? r.endDate.toISOString().slice(0, 10) : null,
         client: r.client,
         machines: r.machines,
         type: r.type,
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
       date?: string;
+      endDate?: string | null;
       client?: string;
       machines?: number;
       type?: string;
@@ -56,9 +58,21 @@ export async function POST(req: Request) {
     if (isNaN(parsed.getTime())) {
       return NextResponse.json({ error: "date ISO invalide" }, { status: 400 });
     }
+    let endDate: Date | null = null;
+    if (body.endDate) {
+      const e = new Date(body.endDate);
+      if (isNaN(e.getTime())) {
+        return NextResponse.json(
+          { error: "date de fin invalide" },
+          { status: 400 },
+        );
+      }
+      endDate = e;
+    }
     const row = await prisma.reservation.create({
       data: {
         date: parsed,
+        endDate,
         client: body.client?.trim() ?? "",
         machines: Math.max(1, Number(body.machines) || 1),
         type: body.type ?? "saison",
@@ -67,6 +81,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       id: row.id,
       date: row.date.toISOString().slice(0, 10),
+      endDate: row.endDate ? row.endDate.toISOString().slice(0, 10) : null,
       client: row.client,
       machines: row.machines,
       type: row.type,

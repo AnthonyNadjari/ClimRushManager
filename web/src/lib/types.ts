@@ -37,6 +37,8 @@ export interface FieldTask {
   timeNote?: string;
   upsell?: string;
   extraNote?: string;
+  truckLabel: string;
+  machineIds: string[];
 }
 
 export interface ActivityItem {
