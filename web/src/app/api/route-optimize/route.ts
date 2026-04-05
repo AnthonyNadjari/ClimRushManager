@@ -33,7 +33,7 @@ export async function POST(req: Request) {
         durationLabel: `~${minutes} min`,
         distanceKm: (result.totalDistanceM / 1000).toFixed(1),
       },
-      source: "osrm+nominatim",
+      source: result.source ?? "osrm+nominatim",
     });
   } catch (e) {
     console.error(e);
