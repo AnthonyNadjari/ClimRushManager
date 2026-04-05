@@ -78,15 +78,25 @@ export async function optimizeRouteOsrm(addresses: string[]): Promise<
   const base =
     process.env.OSRM_BASE_URL?.replace(/\/$/, "") ??
     "https://router.project-osrm.org";
-  const tripUrl = `${base}/trip/v1/driving/${coords}?roundtrip=false&source=first&destination=last&geometries=false`;
 
-  const tripRes = await fetch(tripUrl, { cache: "no-store" });
-  if (!tripRes.ok) {
-    return { error: `OSRM HTTP ${tripRes.status}` };
+  // Try non-roundtrip first, fallback to roundtrip (public demo often rejects non-roundtrip)
+  let data: OsrmTripResponse | null = null;
+  for (const qs of [
+    "roundtrip=false&source=first&destination=last&geometries=false",
+    "roundtrip=true&geometries=false",
+  ]) {
+    const tripRes = await fetch(`${base}/trip/v1/driving/${coords}?${qs}`, {
+      cache: "no-store",
+    });
+    if (tripRes.ok) {
+      data = (await tripRes.json()) as OsrmTripResponse;
+      if (data.code === "Ok" && data.trips?.[0] && data.waypoints) break;
+      data = null;
+    }
   }
-  const data = (await tripRes.json()) as OsrmTripResponse;
-  if (data.code !== "Ok" || !data.trips?.[0] || !data.waypoints) {
-    return { error: "Réponse OSRM invalide" };
+
+  if (!data || data.code !== "Ok" || !data.trips?.[0] || !data.waypoints) {
+    return { error: "OSRM n'a pas pu calculer l'itinéraire" };
   }
 
   const trip = data.trips[0];
