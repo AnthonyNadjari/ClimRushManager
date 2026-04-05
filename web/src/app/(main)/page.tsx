@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR from "swr";
+import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import type { ActivityItem } from "@/lib/types";
 
 type Kpi = {
@@ -40,13 +41,7 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-        <p className="font-semibold">Impossible de charger le dashboard</p>
-        <p className="mt-1">
-          Configurez PostgreSQL (<code className="rounded bg-white/80 px-1">DATABASE_URL</code>)
-          et exécutez les migrations + seed.
-        </p>
-      </div>
+      <DatabaseErrorCard heading="Impossible de charger le dashboard" />
     );
   }
 

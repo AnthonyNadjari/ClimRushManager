@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { REVENUE_BY_OFFER } from "@/lib/data";
+import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import { SimpleModal } from "@/components/SimpleModal";
 
 const MONTHS_DEMO = [
@@ -86,9 +87,7 @@ export default function AnalyticsPage() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-        <p className="font-semibold">Impossible de charger les analytics</p>
-      </div>
+      <DatabaseErrorCard heading="Impossible de charger les analytics" />
     );
   }
 

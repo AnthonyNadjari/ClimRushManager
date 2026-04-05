@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import type { MachineStatus, Machine } from "@/lib/types";
+import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import { SimpleModal } from "@/components/SimpleModal";
 import { apiJson } from "@/lib/api-client";
 
@@ -103,12 +104,7 @@ export default function MachinesPage() {
   }
 
   if (error) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-        <p className="font-semibold">Base de données inaccessible</p>
-        <p className="mt-1">Vérifiez DATABASE_URL et les migrations Prisma.</p>
-      </div>
-    );
+    return <DatabaseErrorCard />;
   }
 
   if (isLoading || !machines) {

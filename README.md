@@ -39,6 +39,14 @@ Ouvrir [http://localhost:3000](http://localhost:3000).
 
 Sans base, l’UI affiche une erreur sur les écrans qui lisent l’API.
 
+### Option C — Même base Supabase que la prod (sans Docker)
+
+`npx vercel env pull` **ne remplit pas** `DATABASE_URL` lorsque la variable est marquée **Sensitive** sur Vercel (valeur vide dans `.env.local`).
+
+1. [Supabase](https://supabase.com/dashboard/project/pumtskzxqhzldgbtuhtn) → **Settings → Database** : copiez ou réinitialisez le **mot de passe** de la base.
+2. `cp web/.env.local.example web/.env.local` puis remplacez `VOTRE_MOT_DE_PASSE` dans `web/.env.local`.
+3. `cd web && npm run dev`
+
 ## Déployer sur Vercel
 
 L’app Next.js vit dans **`web/`**.

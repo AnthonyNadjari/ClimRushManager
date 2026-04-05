@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import type { ClientRow, ClientStatus } from "@/lib/types";
 import { clientsToCsv, triggerDownload } from "@/lib/csv";
+import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import { SimpleModal } from "@/components/SimpleModal";
 import { clientSmsDraftBody, smsDraftHref } from "@/lib/sms-draft";
 import { apiJson } from "@/lib/api-client";
@@ -93,11 +94,7 @@ export default function ClientsPage() {
   }
 
   if (error) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-        <p className="font-semibold">Base de données inaccessible</p>
-      </div>
-    );
+    return <DatabaseErrorCard />;
   }
 
   if (isLoading || !CLIENTS) {

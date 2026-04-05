@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import useSWR from "swr";
+import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import { june2026Calendar } from "@/lib/data";
 import { apiJson } from "@/lib/api-client";
 
@@ -124,11 +125,7 @@ export default function PlanningPage() {
   }
 
   if (error) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-        <p className="font-semibold">Base de données inaccessible</p>
-      </div>
-    );
+    return <DatabaseErrorCard />;
   }
 
   return (

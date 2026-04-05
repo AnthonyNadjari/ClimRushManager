@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR from "swr";
+import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import { FieldOpsList } from "@/components/FieldOpsList";
 import type { FieldTask } from "@/lib/types";
 
@@ -17,20 +18,7 @@ export default function LivraisonsPage() {
   );
 
   if (error) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-        <p className="font-semibold">Base de données inaccessible</p>
-        <p className="mt-1">
-          Définissez <code className="rounded bg-white/80 px-1">DATABASE_URL</code>{" "}
-          (PostgreSQL), puis{" "}
-          <code className="rounded bg-white/80 px-1">
-            npx prisma migrate deploy
-          </code>{" "}
-          et{" "}
-          <code className="rounded bg-white/80 px-1">npx prisma db seed</code>.
-        </p>
-      </div>
-    );
+    return <DatabaseErrorCard />;
   }
 
   if (isLoading || !tasks) {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
+import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import type { MaintenanceRow } from "@/lib/types";
 import { apiJson } from "@/lib/api-client";
 
@@ -28,12 +29,7 @@ export default function MaintenancePage() {
   }, [rows]);
 
   if (error) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
-        <p className="font-semibold">Base de données inaccessible</p>
-        <p className="mt-1">Vérifiez DATABASE_URL et les migrations.</p>
-      </div>
-    );
+    return <DatabaseErrorCard />;
   }
 
   if (isLoading || !rows) {
