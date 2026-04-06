@@ -15,6 +15,14 @@ const statusFr: Record<string, string> = {
   SAV: "Maintenance",
 };
 
+const statusBadgeClass: Record<string, string> = {
+  DISPO: "bg-emerald-100 text-emerald-900 ring-emerald-200",
+  LOUE: "bg-red-100 text-red-900 ring-red-200",
+  RESA: "bg-blue-100 text-blue-900 ring-blue-200",
+  LIV: "bg-amber-100 text-amber-950 ring-amber-200",
+  SAV: "bg-zinc-100 text-zinc-800 ring-zinc-200",
+};
+
 export default async function MachinePublicPage({ params }: Props) {
   const { id: raw } = await params;
   const id = decodeURIComponent(raw).replace(/^#/, "").trim();
@@ -31,8 +39,14 @@ export default async function MachinePublicPage({ params }: Props) {
       <p className="mt-1 text-lg text-zinc-700">{m.model}</p>
 
       <div className="mt-6 space-y-3 rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm">
-        <Row label="Lot" value={m.lot} />
-        <Row label="Statut" value={statusFr[m.status] ?? m.status} />
+        <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-3">
+          <span className="text-xs font-medium text-zinc-500">Statut</span>
+          <span
+            className={`inline-flex w-fit rounded-full px-2.5 py-1 text-sm font-bold ring-1 ${statusBadgeClass[m.status] ?? "bg-zinc-100 text-zinc-800 ring-zinc-200"}`}
+          >
+            {statusFr[m.status] ?? m.status}
+          </span>
+        </div>
         <Row label="Client" value={m.clientName ?? "—"} />
         <Row label="Retour prévu" value={m.returnDate ?? "—"} />
         <Row label="Amortissement" value={m.amortLabel} />

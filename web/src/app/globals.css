@@ -7,6 +7,11 @@
   --cr-orange: #ea580c;
   --cr-red: #dc2626;
   --cr-violet: #7c3aed;
+  /* Parc / planning — référence unique */
+  --cr-status-dispo: #16a34a;
+  --cr-status-loue: #dc2626;
+  --cr-status-liv: #ea580c;
+  --cr-status-resa: #2563eb;
   --background: #f4f4f5;
   --foreground: #18181b;
 }

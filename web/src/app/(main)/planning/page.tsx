@@ -7,8 +7,9 @@ import type { ClientRow } from "@/lib/types";
 import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
 import { june2026Calendar } from "@/lib/data";
 import { apiJson } from "@/lib/api-client";
+import type { CalendarDayMeta } from "@/lib/types";
 
-const weekDays = ["L", "M", "M", "J", "V", "S", "D"];
+const weekdayLabelsFr = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"];
 
 const PLANNING_YEAR = 2026;
 const PLANNING_MONTH = 6;
@@ -217,9 +218,9 @@ export default function PlanningPage() {
 
       {view === "month" ? (
         <>
-          <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs font-semibold text-zinc-500">
-            {weekDays.map((d, i) => (
-              <span key={`${d}-${i}`}>{d}</span>
+          <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-zinc-500">
+            {weekdayLabelsFr.map((d, i) => (
+              <span key={`${d}-hdr-${i}`}>{d}</span>
             ))}
           </div>
           <div className="mt-1 grid grid-cols-7 gap-1">
@@ -228,20 +229,17 @@ export default function PlanningPage() {
                 key={meta.day}
                 type="button"
                 onClick={() => openReserve(meta.day)}
-                className="flex aspect-square flex-col items-center justify-start rounded-xl bg-white p-1 text-sm font-medium shadow-sm ring-1 ring-zinc-100 transition-colors hover:bg-zinc-50 hover:ring-zinc-200 active:bg-zinc-100"
+                className="flex min-h-[6rem] flex-col items-center rounded-xl bg-white p-1.5 text-xs shadow-sm ring-1 ring-zinc-100 transition-colors hover:bg-zinc-50 hover:ring-zinc-200 active:bg-zinc-100"
               >
-                <span>{meta.day}</span>
+                <span className="text-sm font-bold text-zinc-900">
+                  {meta.day}
+                </span>
+                <PlanningDayMetrics meta={meta} />
                 {resaByDay[meta.day] ? (
-                  <span className="mt-0.5 text-[9px] font-semibold text-blue-600">
+                  <span className="mt-auto pt-1 text-[9px] font-semibold text-[var(--cr-status-resa)]">
                     {resaByDay[meta.day]} résa
                   </span>
                 ) : null}
-                <span className="mt-1 flex flex-wrap justify-center gap-0.5">
-                  <Dot color="bg-red-500" title="Louées" />
-                  <Dot color="bg-emerald-500" title="Dispo" />
-                  <Dot color="bg-amber-500" title="Livraisons" />
-                  <Dot color="bg-blue-500" title="Retours" />
-                </span>
               </button>
             ))}
           </div>
@@ -270,14 +268,6 @@ export default function PlanningPage() {
               ▶
             </button>
           </div>
-          <div className="mt-2 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-zinc-500">
-            {weekDays.map((d, i) => (
-              <span key={`${d}-wk-${i}`}>
-                {d}
-                {weekCells[i] != null ? ` ${weekCells[i]}` : ""}
-              </span>
-            ))}
-          </div>
           <div className="mt-1 grid grid-cols-7 gap-1">
             {weekCells.map((d, i) =>
               d == null ? (
@@ -290,22 +280,9 @@ export default function PlanningPage() {
                   className="flex min-h-[6rem] flex-col items-center rounded-xl bg-white p-1.5 text-xs shadow-sm ring-1 ring-zinc-100 transition-colors hover:bg-zinc-50"
                 >
                   <span className="text-sm font-bold text-zinc-900">{d}</span>
-                  <span className="mt-1 flex flex-col items-center text-[11px] font-bold tabular-nums leading-snug">
-                    <span className="text-red-600" title="Louées">
-                      {days[d - 1].lou}
-                    </span>
-                    <span className="text-emerald-600" title="Dispo">
-                      {days[d - 1].dis}
-                    </span>
-                    <span className="text-amber-600" title="Livrées">
-                      {days[d - 1].liv}
-                    </span>
-                    <span className="text-blue-600" title="Retournées">
-                      {days[d - 1].ret}
-                    </span>
-                  </span>
+                  <PlanningDayMetrics meta={days[d - 1]} />
                   {resaByDay[d] ? (
-                    <span className="mt-auto pt-1 text-[9px] font-semibold text-blue-600">
+                    <span className="mt-auto pt-1 text-[9px] font-semibold text-[var(--cr-status-resa)]">
                       {resaByDay[d]} résa
                     </span>
                   ) : null}
@@ -323,25 +300,37 @@ export default function PlanningPage() {
         <p className="font-semibold text-zinc-800">Légende</p>
         <ul className="mt-2 space-y-1 text-zinc-600">
           <li className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ background: "var(--cr-status-loue)" }}
+            />
             Louées
           </li>
           <li className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ background: "var(--cr-status-dispo)" }}
+            />
             Dispo
           </li>
           <li className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ background: "var(--cr-status-liv)" }}
+            />
             Livraisons
           </li>
           <li className="flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
-            Retours
+            <span
+              className="h-2.5 w-2.5 rounded-full"
+              style={{ background: "var(--cr-status-resa)" }}
+            />
+            Retournées
           </li>
         </ul>
         <p className="mt-3 text-xs text-zinc-500">
-          Les réservations enregistrées apparaissent en bleu sur le jour (base
-          PostgreSQL).
+          Les réservations (nombre de « résa ») utilisent la couleur
+          «&nbsp;réservé&nbsp;» (bleu).
         </p>
       </div>
 
@@ -565,11 +554,21 @@ export default function PlanningPage() {
   );
 }
 
-function Dot({ color, title }: { color: string; title: string }) {
+function PlanningDayMetrics({ meta }: { meta: CalendarDayMeta }) {
   return (
-    <span
-      className={`block h-1.5 w-1.5 rounded-full ${color}`}
-      title={title}
-    />
+    <span className="mt-1 flex flex-col items-center text-[11px] font-bold tabular-nums leading-snug">
+      <span className="text-[var(--cr-status-loue)]" title="Louées">
+        {meta.lou}
+      </span>
+      <span className="text-[var(--cr-status-dispo)]" title="Dispo">
+        {meta.dis}
+      </span>
+      <span className="text-[var(--cr-status-liv)]" title="Livraisons">
+        {meta.liv}
+      </span>
+      <span className="text-[var(--cr-status-resa)]" title="Retournées">
+        {meta.ret}
+      </span>
+    </span>
   );
 }

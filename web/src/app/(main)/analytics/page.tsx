@@ -66,8 +66,8 @@ export default function AnalyticsPage() {
     );
     const segments = [
       { pct: (KPI.dispo / KPI.stockTotal) * 100, color: "#16a34a" },
-      { pct: (KPI.louees / KPI.stockTotal) * 100, color: "#2563eb" },
-      { pct: (KPI.sav / KPI.stockTotal) * 100, color: "#dc2626" },
+      { pct: (KPI.louees / KPI.stockTotal) * 100, color: "#dc2626" },
+      { pct: (KPI.sav / KPI.stockTotal) * 100, color: "#71717a" },
       { pct: (other / KPI.stockTotal) * 100, color: "#ea580c" },
     ];
     let at = 0;

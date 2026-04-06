@@ -89,13 +89,13 @@ export default function DashboardPage() {
           hint={`sur ${KPI.stockTotal}`}
         />
         <KpiCard
-          tone="orange"
+          tone="red"
           label="Louées"
           value={`${KPI.louees}`}
           hint={`${occ} % occ.`}
         />
         <KpiCard
-          tone="red"
+          tone="orange"
           label="Livraisons"
           value={`${KPI.livraisonsTotal}`}
           hint={`${KPI.livraisonsRestantes} restantes`}
@@ -171,7 +171,7 @@ function activityVisual(item: ActivityItem) {
     blob.includes("livraison") ||
     blob.includes("livré")
   ) {
-    return { border: "border-l-emerald-500", ring: "bg-emerald-50", emoji: "🚚" };
+    return { border: "border-l-orange-500", ring: "bg-orange-50", emoji: "🚚" };
   }
   if (item.kind === "sms") {
     return { border: "border-l-sky-500", ring: "bg-sky-50", emoji: "📱" };

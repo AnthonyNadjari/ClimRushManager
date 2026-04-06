@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { FieldTask } from "@/lib/types";
+import { FilterChip } from "./FilterChip";
 import { MachineNumberModal } from "./MachineNumberModal";
 import { SimpleModal } from "./SimpleModal";
 import { apiJson } from "@/lib/api-client";
@@ -81,6 +82,9 @@ export function FieldOpsList({
   const [routeData, setRouteData] = useState<RouteOptimizeResult | null>(null);
   const [multiRouteOpen, setMultiRouteOpen] = useState(false);
   const [multiRoutes, setMultiRoutes] = useState<MultiRouteRow[] | null>(null);
+  const [truckAssignTask, setTruckAssignTask] = useState<FieldTask | null>(
+    null,
+  );
 
   const truckTabs = useMemo(() => {
     const preset = new Set<string>(TRUCK_TABS);
@@ -304,6 +308,10 @@ export function FieldOpsList({
               >
                 {task.phone}
               </a>
+              <p className="mt-2 text-xs text-zinc-600">
+                <span className="font-semibold text-zinc-800">Camion :</span>{" "}
+                {task.truckLabel || "Tous"}
+              </p>
 
               {(task.machineIds.length > 0 ||
                 (task.status === "pending" || task.status === "in_progress")) && (
@@ -346,6 +354,13 @@ export function FieldOpsList({
               ) : null}
 
               <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTruckAssignTask(task)}
+                  className="inline-flex min-h-[48px] items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-bold text-white active:scale-[0.98]"
+                >
+                  Camion
+                </button>
                 {task.status === "pending" || task.status === "in_progress" ? (
                   <a
                     href={appleMapsUrl(task.address)}
@@ -456,6 +471,15 @@ export function FieldOpsList({
         onSaved={() => {
           onRefresh();
           setMachineIdsEditTask(null);
+        }}
+      />
+
+      <TruckAssignModal
+        task={truckAssignTask}
+        onClose={() => setTruckAssignTask(null)}
+        onSaved={() => {
+          onRefresh();
+          setTruckAssignTask(null);
         }}
       />
 
@@ -590,6 +614,109 @@ function TaskRecapModal({
             <dd>{task.upsell ?? task.extraNote ?? "—"}</dd>
           </div>
         </dl>
+      ) : null}
+    </SimpleModal>
+  );
+}
+
+function TruckAssignModal({
+  task,
+  onClose,
+  onSaved,
+}: {
+  task: FieldTask | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const open = task != null;
+  const presets = ["Tous", "Camion Alex", "Camion Matéo"] as const;
+  const [pick, setPick] = useState<(typeof presets)[number]>("Tous");
+  const [custom, setCustom] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!task || !open) return;
+    const t = task.truckLabel || "Tous";
+    if ((presets as readonly string[]).includes(t)) {
+      setPick(t as (typeof presets)[number]);
+      setCustom("");
+    } else {
+      setPick("Tous");
+      setCustom(t);
+    }
+  }, [task, open]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!task) return;
+    const label = custom.trim() || pick;
+    setSaving(true);
+    try {
+      await apiJson(`/api/field-tasks/${task.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ truckLabel: label }),
+      });
+      await apiJson("/api/activity", {
+        method: "POST",
+        body: JSON.stringify({
+          kind: "ok",
+          title: "Camion assigné",
+          subtitle: `${task.clientLabel} → ${label}`,
+          time: "À l’instant",
+        }),
+      });
+      onSaved();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SimpleModal open={open} onClose={onClose} title="Attribuer un camion">
+      {task ? (
+        <form onSubmit={submit} className="space-y-3">
+          <p className="text-xs text-zinc-500">
+            Rattachez la commande à un camion pour filtrer les tournées et
+            l’optimisation d’itinéraire.
+          </p>
+          <label className="block">
+            <span className="text-xs font-medium text-zinc-500">Camion</span>
+            <select
+              value={pick}
+              onChange={(e) => {
+                setPick(e.target.value as (typeof presets)[number]);
+                setCustom("");
+              }}
+              className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+            >
+              {presets.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-zinc-500">
+              Nom personnalisé (remplace le choix ci-dessus si rempli)
+            </span>
+            <input
+              value={custom}
+              onChange={(e) => setCustom(e.target.value)}
+              placeholder="ex. Camion Nord, Camion 2…"
+              className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:border-[var(--cr-blue)]"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={saving}
+            className="min-h-12 w-full rounded-xl bg-violet-600 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {saving ? "…" : "Enregistrer"}
+          </button>
+        </form>
       ) : null}
     </SimpleModal>
   );
@@ -862,39 +989,3 @@ function CompleteTaskButton({
   );
 }
 
-function FilterChip({
-  active,
-  onClick,
-  label,
-  count,
-  tone,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-  tone?: "green" | "orange" | "red";
-}) {
-  const toneRing =
-    tone === "green"
-      ? "ring-emerald-200"
-      : tone === "orange"
-        ? "ring-amber-200"
-        : tone === "red"
-          ? "ring-red-200"
-          : "ring-zinc-200";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold ring-1 transition-colors ${
-        active
-          ? "bg-zinc-900 text-white ring-zinc-900"
-          : `bg-white text-zinc-700 ${toneRing} hover:bg-zinc-50`
-      }`}
-    >
-      {label}{" "}
-      <span className="opacity-80">({count})</span>
-    </button>
-  );
-}

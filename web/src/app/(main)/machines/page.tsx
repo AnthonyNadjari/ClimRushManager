@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import type { MachineStatus, Machine } from "@/lib/types";
 import { DatabaseErrorCard } from "@/components/DatabaseErrorCard";
+import { FilterChip } from "@/components/FilterChip";
 import { SimpleModal } from "@/components/SimpleModal";
 import { apiJson } from "@/lib/api-client";
 
@@ -17,11 +18,11 @@ const statusLabels: Record<MachineStatus, string> = {
 };
 
 const statusStyle: Record<MachineStatus, string> = {
-  DISPO: "bg-emerald-100 text-emerald-800",
-  LOUE: "bg-red-100 text-red-800",
-  RESA: "bg-blue-100 text-blue-800",
-  LIV: "bg-amber-100 text-amber-900",
-  SAV: "bg-red-50 text-red-700 ring-1 ring-red-200",
+  DISPO: "bg-emerald-100 text-emerald-900",
+  LOUE: "bg-red-100 text-red-900",
+  RESA: "bg-blue-100 text-blue-900",
+  LIV: "bg-amber-100 text-amber-950",
+  SAV: "bg-zinc-100 text-zinc-800 ring-1 ring-zinc-200",
 };
 
 async function fetcher<T>(url: string): Promise<T> {
@@ -338,23 +339,48 @@ export default function MachinesPage() {
         className="mt-4 min-h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-base outline-none focus:border-[var(--cr-blue)]"
       />
 
-      <label className="mt-3 block">
-        <span className="sr-only">Filtrer par statut</span>
-        <select
-          value={filter}
-          onChange={(e) =>
-            setFilter(e.target.value as "all" | MachineStatus)
-          }
-          className="min-h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-800 outline-none focus:border-[var(--cr-blue)]"
-        >
-          <option value="all">Toutes ({stockTotal})</option>
-          <option value="DISPO">Dispos ({dispoCount})</option>
-          <option value="LOUE">Louée ({louees})</option>
-          <option value="RESA">Résa ({resaCount})</option>
-          <option value="LIV">Livraison ({livCount})</option>
-          <option value="SAV">SAV ({savCount})</option>
-        </select>
-      </label>
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <FilterChip
+          active={filter === "all"}
+          onClick={() => setFilter("all")}
+          label="Toutes"
+          count={stockTotal}
+        />
+        <FilterChip
+          active={filter === "DISPO"}
+          onClick={() => setFilter("DISPO")}
+          label="Dispos"
+          count={dispoCount}
+          tone="green"
+        />
+        <FilterChip
+          active={filter === "LOUE"}
+          onClick={() => setFilter("LOUE")}
+          label="Louée"
+          count={louees}
+          tone="red"
+        />
+        <FilterChip
+          active={filter === "RESA"}
+          onClick={() => setFilter("RESA")}
+          label="Résa"
+          count={resaCount}
+          tone="blue"
+        />
+        <FilterChip
+          active={filter === "LIV"}
+          onClick={() => setFilter("LIV")}
+          label="Livraison"
+          count={livCount}
+          tone="orange"
+        />
+        <FilterChip
+          active={filter === "SAV"}
+          onClick={() => setFilter("SAV")}
+          label="SAV"
+          count={savCount}
+        />
+      </div>
 
       <ul className="mt-3 flex flex-col gap-3">
         {list.map((m) => (
@@ -427,7 +453,6 @@ function MachineRow({
             ? `${m.clientName} — Retour ${m.returnDate ?? "—"}`
             : "Disponible — Aucun client"}
         </p>
-        <p className="mt-0.5 text-xs text-zinc-500">Lot : {m.lot}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <span
             className={`rounded-full px-2 py-0.5 text-xs font-bold ${statusStyle[m.status]}`}
