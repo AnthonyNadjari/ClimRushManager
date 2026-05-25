@@ -7,14 +7,26 @@ function run(cmd) {
 run("npx prisma generate");
 
 const dbUrl = String(process.env.DATABASE_URL || "").trim();
-// Le schéma déclare `directUrl = env("DIRECT_URL")`, requis par `migrate deploy`.
-// Si seule DATABASE_URL est fournie (cas courant sur Vercel), on l'utilise aussi
-// comme connexion directe pour éviter l'échec de validation P1012.
+// Connexion DIRECTE pour les migrations. Le schéma déclare `directUrl = env("DIRECT_URL")`,
+// requis par `migrate deploy`. Si DIRECT_URL est absente, on la dérive de DATABASE_URL.
+// Le pooler « transaction » de Supabase (port 6543) ne supporte PAS les migrations :
+// on bascule vers le pooler « session » (même hôte, port 5432) qui, lui, les supporte.
 if (dbUrl && !String(process.env.DIRECT_URL || "").trim()) {
-  process.env.DIRECT_URL = dbUrl;
+  process.env.DIRECT_URL = dbUrl.replace(":6543/", ":5432/");
 }
 if (dbUrl) {
-  run("npx prisma migrate deploy");
+  try {
+    run("npx prisma migrate deploy");
+  } catch {
+    console.error(
+      "\n[ClimRush] ÉCHEC de `prisma migrate deploy` (voir l’erreur ci-dessus). " +
+        "Le déploiement CONTINUE mais l’API restera en erreur tant que la base " +
+        "n’est pas migrée. Sur Supabase, les migrations doivent passer par une " +
+        "connexion DIRECTE ou le pooler « session » (port 5432), pas le pooler " +
+        "« transaction » (6543) : définissez DIRECT_URL en conséquence sur Vercel. " +
+        "Après le déploiement, ouvrez /api/health pour la cause exacte.\n",
+    );
+  }
 } else {
   console.warn(
     "\n[ClimRush] DATABASE_URL absent : migrations ignorées pour ce build. " +
