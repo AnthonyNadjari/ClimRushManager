@@ -7,6 +7,12 @@ function run(cmd) {
 run("npx prisma generate");
 
 const dbUrl = String(process.env.DATABASE_URL || "").trim();
+// Le schéma déclare `directUrl = env("DIRECT_URL")`, requis par `migrate deploy`.
+// Si seule DATABASE_URL est fournie (cas courant sur Vercel), on l'utilise aussi
+// comme connexion directe pour éviter l'échec de validation P1012.
+if (dbUrl && !String(process.env.DIRECT_URL || "").trim()) {
+  process.env.DIRECT_URL = dbUrl;
+}
 if (dbUrl) {
   run("npx prisma migrate deploy");
 } else {

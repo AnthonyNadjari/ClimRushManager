@@ -23,6 +23,13 @@ export function DatabaseErrorCard({
         <code className="rounded bg-white/80 px-1">DATABASE_URL</code> est bien définie
         sur le projet Vercel, puis redéployez.
       </p>
+      <p className="mt-2 text-red-800/90">
+        Diagnostic :{" "}
+        <a href="/api/health" className="underline">
+          /api/health
+        </a>{" "}
+        indique la cause exacte (table manquante, identifiants, hôte injoignable…).
+      </p>
     </div>
   );
 }

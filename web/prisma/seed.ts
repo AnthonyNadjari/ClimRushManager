@@ -17,6 +17,49 @@ async function main() {
   await prisma.machine.deleteMany();
   await prisma.client.deleteMany();
 
+  // Les clients doivent exister avant les machines (FK Machine.clientId -> Client.id).
+  await prisma.client.createMany({
+    data: [
+      {
+        id: "c1",
+        name: "Résidence du Marais",
+        initials: "RM",
+        status: ClientStatus.en_cours,
+        daysRented: 62,
+        caHt: 2995,
+        email: "contact@marais-res.fr",
+        phone: "+33612345678",
+        address: "12 rue des Archives, 75004 Paris",
+        alert: "SMS J-7 rachat",
+        lotSummary: "Lot résidence — IDF 2026",
+      },
+      {
+        id: "c2",
+        name: "OVELIA",
+        initials: "OV",
+        status: ClientStatus.en_cours,
+        daysRented: 120,
+        caHt: 8200,
+        email: "ops@ovelia.fr",
+        phone: "+33698765432",
+        address: "8 av. Georges Pompidou, 92300 Levallois",
+        lotSummary: "3 unités listées (parc plus large en démo)",
+      },
+      {
+        id: "c3",
+        name: "DOMITYS Bercy",
+        initials: "DB",
+        status: ClientStatus.a_venir,
+        daysRented: 0,
+        caHt: 0,
+        email: "bercy@domitys.fr",
+        phone: "+33655443322",
+        address: "45 bd Poniatowski, 75012 Paris",
+        lotSummary: "Contrat à venir — pas encore d’unités assignées",
+      },
+    ],
+  });
+
   await prisma.machine.createMany({
     data: [
       {
@@ -104,48 +147,6 @@ async function main() {
         cumulativeRevenueHt: 0,
         contract: "mensuel",
         daysRented: 0,
-      },
-    ],
-  });
-
-  await prisma.client.createMany({
-    data: [
-      {
-        id: "c1",
-        name: "Résidence du Marais",
-        initials: "RM",
-        status: ClientStatus.en_cours,
-        daysRented: 62,
-        caHt: 2995,
-        email: "contact@marais-res.fr",
-        phone: "+33612345678",
-        address: "12 rue des Archives, 75004 Paris",
-        alert: "SMS J-7 rachat",
-        lotSummary: "Lot résidence — IDF 2026",
-      },
-      {
-        id: "c2",
-        name: "OVELIA",
-        initials: "OV",
-        status: ClientStatus.en_cours,
-        daysRented: 120,
-        caHt: 8200,
-        email: "ops@ovelia.fr",
-        phone: "+33698765432",
-        address: "8 av. Georges Pompidou, 92300 Levallois",
-        lotSummary: "3 unités listées (parc plus large en démo)",
-      },
-      {
-        id: "c3",
-        name: "DOMITYS Bercy",
-        initials: "DB",
-        status: ClientStatus.a_venir,
-        daysRented: 0,
-        caHt: 0,
-        email: "bercy@domitys.fr",
-        phone: "+33655443322",
-        address: "45 bd Poniatowski, 75012 Paris",
-        lotSummary: "Contrat à venir — pas encore d’unités assignées",
       },
     ],
   });

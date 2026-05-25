@@ -66,7 +66,11 @@ Le **build** peut réussir **sans** `DATABASE_URL` (les migrations sont alors ig
 1. **Storage** (ou intégration **Neon** / **Supabase** / autre Postgres) depuis le dashboard Vercel, **ou**
 2. **Settings → Environment Variables** : **`DATABASE_URL`** pour **Production** et **Preview**. Avec **Supabase**, utiliser de préférence l’URI du **pooler « session »** (port **5432**, hôte `*.pooler.supabase.com`, utilisateur `postgres.<project_ref>`) — voir `web/.env.example`.
 
+> **`DIRECT_URL`** : le schéma Prisma déclare une connexion directe pour les **migrations**. Si vous laissez `DIRECT_URL` vide, le build retombe automatiquement sur `DATABASE_URL`. Définissez-la explicitement **uniquement** si `DATABASE_URL` pointe sur le **pooler « transaction »** (port **6543**) : mettez alors la connexion **directe** (port 5432) dans `DIRECT_URL`.
+
 Puis **Redeploy** une fois la variable ajoutée pour exécuter `prisma migrate deploy`.
+
+> **Dashboard « Impossible de charger »** = base injoignable ou non migrée. Ouvrez **`/api/health`** sur le site déployé : la réponse JSON (`error` + `hint`) indique la cause exacte (tables absentes → migrations non exécutées, identifiants invalides, hôte injoignable…).
 
 **Déjà configuré sur ce dépôt** : projet Supabase **`climrush-manager`** + `DATABASE_URL` sur Vercel. Pour le dev local avec la même base : `cd web && npx vercel env pull` (crée `.env.local`, non versionné).
 
