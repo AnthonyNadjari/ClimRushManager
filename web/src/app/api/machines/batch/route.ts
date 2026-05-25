@@ -4,6 +4,10 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+// Garde-fou anti-insertion géante accidentelle (mémoire / fonction serverless),
+// suffisamment haut pour ne jamais gêner un usage normal.
+const MAX_UNITS = 10000;
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as {
@@ -24,9 +28,9 @@ export async function POST(req: Request) {
       if (ids.length === 0) {
         return NextResponse.json({ error: "Liste vide" }, { status: 400 });
       }
-      if (ids.length > 200) {
+      if (ids.length > MAX_UNITS) {
         return NextResponse.json(
-          { error: "Maximum 200 unités par requête" },
+          { error: `Maximum ${MAX_UNITS} unités par requête` },
           { status: 400 },
         );
       }
@@ -34,9 +38,9 @@ export async function POST(req: Request) {
       // Range mode: from/to with optional exclusions
       const lo = parseInt(body.from ?? "", 10);
       const hi = parseInt(body.to ?? "", 10);
-      if (isNaN(lo) || isNaN(hi) || lo > hi || hi - lo > 200) {
+      if (isNaN(lo) || isNaN(hi) || lo > hi || hi - lo + 1 > MAX_UNITS) {
         return NextResponse.json(
-          { error: "from/to numériques requis (max 200 unités)" },
+          { error: `from/to numériques requis (max ${MAX_UNITS} unités)` },
           { status: 400 },
         );
       }
