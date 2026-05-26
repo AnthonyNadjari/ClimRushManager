@@ -14,7 +14,8 @@
     "postinstall": "prisma generate",
     "db:seed": "prisma db seed",
     "db:migrate": "prisma migrate deploy",
-    "db:prepare": "prisma migrate deploy && prisma db seed"
+    "db:prepare": "prisma migrate deploy && prisma db seed",
+    "db:reset": "npx tsx prisma/reset.ts"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
