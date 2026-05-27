@@ -572,9 +572,13 @@ function MachineRow({
       <div className="min-w-0 flex-1">
         <p className="font-semibold text-zinc-900">{m.model}</p>
         <p className="text-sm text-zinc-600">
-          {m.clientName
-            ? `${m.clientName} — Retour ${m.returnDate ?? "—"}`
-            : "Disponible — Aucun client"}
+          {(() => {
+            if (m.status === "DISPO") return "Disponible — Aucun client";
+            if (m.status === "SAV") return "SAV — Atelier";
+            const who = m.clientName || "Client non renseigné";
+            const ret = m.returnDate ? ` — Retour ${m.returnDate}` : "";
+            return `${who}${ret}`;
+          })()}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <span
