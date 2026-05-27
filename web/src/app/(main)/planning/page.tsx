@@ -95,8 +95,6 @@ export default function PlanningPage() {
     model: "",
     priceHt: "",
     type: "saison" as "hebdo" | "mensuel" | "saison",
-    withRemote: false,
-    withKit: false,
     createDelivery: true,
     address: "",
     phone: "",
@@ -128,8 +126,6 @@ export default function PlanningPage() {
         model: "",
         priceHt: "",
         type: "saison",
-        withRemote: false,
-        withKit: false,
         createDelivery: true,
         address: "",
         phone: "",
@@ -165,8 +161,6 @@ export default function PlanningPage() {
           type: form.type,
           priceHt: Number.isFinite(priceHtParsed) ? priceHtParsed : null,
           model: form.model.trim() || null,
-          withRemote: form.withRemote,
-          withKit: form.withKit,
         }),
       });
       if (form.createDelivery) {
@@ -397,10 +391,10 @@ export default function PlanningPage() {
               onClick={closeReserve}
             >
               <div
-                className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl"
+                className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-100 bg-white px-4 py-3">
                   <h2 id="reserve-title" className="font-serif text-lg font-bold">
                     Nouvelle réservation
                   </h2>
@@ -591,49 +585,20 @@ export default function PlanningPage() {
                     <label className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={form.withRemote}
+                        checked={form.createDelivery}
                         onChange={(e) =>
                           setForm((f) => ({
                             ...f,
-                            withRemote: e.target.checked,
+                            createDelivery: e.target.checked,
                           }))
                         }
                         className="h-4 w-4 rounded border-zinc-300"
                       />
                       <span className="text-sm font-medium text-zinc-700">
-                        Télécommande
-                      </span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={form.withKit}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, withKit: e.target.checked }))
-                        }
-                        className="h-4 w-4 rounded border-zinc-300"
-                      />
-                      <span className="text-sm font-medium text-zinc-700">
-                        Kit
+                        Créer aussi la livraison
                       </span>
                     </label>
                   </div>
-                  <label className="flex items-center gap-2 py-1">
-                    <input
-                      type="checkbox"
-                      checked={form.createDelivery}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          createDelivery: e.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4 rounded border-zinc-300"
-                    />
-                    <span className="text-sm font-medium text-zinc-700">
-                      Créer aussi la livraison
-                    </span>
-                  </label>
 
                   {form.createDelivery && (
                     <>

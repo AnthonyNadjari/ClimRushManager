@@ -31,6 +31,8 @@ export async function POST(req: Request) {
         startDate?: string;
         endDate?: string;
         type?: string;
+        withRemote?: boolean;
+        withKit?: boolean;
       } | null;
     };
     const id = body.id?.replace(/^#/, "").trim();
@@ -85,6 +87,8 @@ export async function POST(req: Request) {
           machines: 1,
           type: contract,
           model: row.model,
+          withRemote: Boolean(rental.withRemote),
+          withKit: Boolean(rental.withKit),
         },
       });
     }

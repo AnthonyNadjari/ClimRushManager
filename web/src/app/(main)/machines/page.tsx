@@ -54,6 +54,8 @@ export default function MachinesPage() {
   const [rentalType, setRentalType] = useState<"hebdo" | "mensuel" | "saison">(
     "saison",
   );
+  const [rentalRemote, setRentalRemote] = useState(false);
+  const [rentalKit, setRentalKit] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const stockTotal = machines?.length ?? 0;
@@ -102,6 +104,8 @@ export default function MachinesPage() {
                 startDate: rentalStart || undefined,
                 endDate: rentalEnd,
                 type: rentalType,
+                withRemote: rentalRemote,
+                withKit: rentalKit,
               }
             : null,
         }),
@@ -123,6 +127,8 @@ export default function MachinesPage() {
       setRentalClient("");
       setRentalStart("");
       setRentalEnd("");
+      setRentalRemote(false);
+      setRentalKit(false);
       void mutate();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Erreur");
@@ -352,6 +358,30 @@ export default function MachinesPage() {
                       <option value="saison">Saison</option>
                     </select>
                   </label>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 py-1">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={rentalRemote}
+                        onChange={(e) => setRentalRemote(e.target.checked)}
+                        className="h-4 w-4 rounded border-zinc-300"
+                      />
+                      <span className="text-sm font-medium text-zinc-700">
+                        Télécommande
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={rentalKit}
+                        onChange={(e) => setRentalKit(e.target.checked)}
+                        className="h-4 w-4 rounded border-zinc-300"
+                      />
+                      <span className="text-sm font-medium text-zinc-700">
+                        Kit
+                      </span>
+                    </label>
+                  </div>
                 </>
               )}
             </>
