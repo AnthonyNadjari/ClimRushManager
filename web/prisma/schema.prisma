@@ -105,15 +105,17 @@ model MaintenanceTicket {
 }
 
 model Reservation {
-  id        String    @id @default(cuid())
-  date      DateTime
-  endDate   DateTime?
-  client    String
-  machines  Int
-  type      String
-  priceHt   Float?
-  model     String?
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  date       DateTime
+  endDate    DateTime?
+  client     String
+  machines   Int
+  type       String
+  priceHt    Float?
+  model      String?
+  withRemote Boolean   @default(false)
+  withKit    Boolean   @default(false)
+  createdAt  DateTime  @default(now())
 }
 
 model Activity {

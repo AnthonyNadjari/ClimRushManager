@@ -36,6 +36,8 @@ export async function GET(req: Request) {
         type: r.type,
         priceHt: r.priceHt,
         model: r.model,
+        withRemote: r.withRemote,
+        withKit: r.withKit,
       })),
     );
   } catch (e) {
@@ -54,6 +56,8 @@ export async function POST(req: Request) {
       type?: string;
       priceHt?: number | null;
       model?: string | null;
+      withRemote?: boolean;
+      withKit?: boolean;
     };
     if (!body.date) {
       return NextResponse.json({ error: "date requise" }, { status: 400 });
@@ -86,6 +90,8 @@ export async function POST(req: Request) {
         type: body.type ?? "saison",
         priceHt,
         model: body.model?.trim() || null,
+        withRemote: Boolean(body.withRemote),
+        withKit: Boolean(body.withKit),
       },
     });
     return NextResponse.json({
@@ -97,6 +103,8 @@ export async function POST(req: Request) {
       type: row.type,
       priceHt: row.priceHt,
       model: row.model,
+      withRemote: row.withRemote,
+      withKit: row.withKit,
     });
   } catch (e) {
     console.error(e);
