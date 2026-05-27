@@ -47,6 +47,13 @@ export default function MachinesPage() {
   const [batchTo, setBatchTo] = useState("");
   const [batchCustom, setBatchCustom] = useState("");
   const [batchExclude, setBatchExclude] = useState("");
+  const [rentalOn, setRentalOn] = useState(false);
+  const [rentalClient, setRentalClient] = useState("");
+  const [rentalStart, setRentalStart] = useState("");
+  const [rentalEnd, setRentalEnd] = useState("");
+  const [rentalType, setRentalType] = useState<"hebdo" | "mensuel" | "saison">(
+    "saison",
+  );
   const [saving, setSaving] = useState(false);
 
   const stockTotal = machines?.length ?? 0;
@@ -78,6 +85,10 @@ export default function MachinesPage() {
       alert("Indiquez un numéro de machine.");
       return;
     }
+    if (rentalOn && !rentalEnd) {
+      alert("Indiquez une date de fin de location.");
+      return;
+    }
     setSaving(true);
     try {
       await apiJson("/api/machines", {
@@ -85,19 +96,33 @@ export default function MachinesPage() {
         body: JSON.stringify({
           id,
           model: newModel.trim() || "12 000 BTU Monobloc",
+          rental: rentalOn
+            ? {
+                client: rentalClient.trim(),
+                startDate: rentalStart || undefined,
+                endDate: rentalEnd,
+                type: rentalType,
+              }
+            : null,
         }),
       });
       await apiJson("/api/activity", {
         method: "POST",
         body: JSON.stringify({
           kind: "ok",
-          title: "Nouvelle machine",
-          subtitle: `Unité #${id} ajoutée au parc`,
+          title: rentalOn ? "Machine + location" : "Nouvelle machine",
+          subtitle: rentalOn
+            ? `Unité #${id} affectée à ${rentalClient.trim() || "client"} (${rentalType})`
+            : `Unité #${id} ajoutée au parc`,
           time: "À l’instant",
         }),
       });
       setAddOpen(false);
       setNewId("");
+      setRentalOn(false);
+      setRentalClient("");
+      setRentalStart("");
+      setRentalEnd("");
       void mutate();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Erreur");
@@ -253,15 +278,83 @@ export default function MachinesPage() {
           </div>
 
           {addMode === "single" ? (
-            <label className="block">
-              <span className="text-xs font-medium text-zinc-500">N° machine</span>
-              <input
-                value={newId}
-                onChange={(e) => setNewId(e.target.value)}
-                placeholder="ex. 512"
-                className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
-              />
-            </label>
+            <>
+              <label className="block">
+                <span className="text-xs font-medium text-zinc-500">N° machine</span>
+                <input
+                  value={newId}
+                  onChange={(e) => setNewId(e.target.value)}
+                  placeholder="ex. 512"
+                  className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                />
+              </label>
+              <label className="flex items-center gap-2 py-1">
+                <input
+                  type="checkbox"
+                  checked={rentalOn}
+                  onChange={(e) => setRentalOn(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300"
+                />
+                <span className="text-sm font-medium text-zinc-700">
+                  Affecter à une location
+                </span>
+              </label>
+              {rentalOn && (
+                <>
+                  <label className="block">
+                    <span className="text-xs font-medium text-zinc-500">
+                      Client
+                    </span>
+                    <input
+                      value={rentalClient}
+                      onChange={(e) => setRentalClient(e.target.value)}
+                      placeholder="ex. Résidence du Marais"
+                      className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                    />
+                  </label>
+                  <div className="flex gap-2">
+                    <label className="flex-1">
+                      <span className="text-xs font-medium text-zinc-500">
+                        Date de début
+                      </span>
+                      <input
+                        type="date"
+                        value={rentalStart}
+                        onChange={(e) => setRentalStart(e.target.value)}
+                        className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                      />
+                    </label>
+                    <label className="flex-1">
+                      <span className="text-xs font-medium text-zinc-500">
+                        Date de fin
+                      </span>
+                      <input
+                        type="date"
+                        value={rentalEnd}
+                        onChange={(e) => setRentalEnd(e.target.value)}
+                        className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                      />
+                    </label>
+                  </div>
+                  <label className="block">
+                    <span className="text-xs font-medium text-zinc-500">
+                      Formule
+                    </span>
+                    <select
+                      value={rentalType}
+                      onChange={(e) =>
+                        setRentalType(e.target.value as typeof rentalType)
+                      }
+                      className="mt-1 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                    >
+                      <option value="hebdo">Hebdomadaire</option>
+                      <option value="mensuel">Mensuel</option>
+                      <option value="saison">Saison</option>
+                    </select>
+                  </label>
+                </>
+              )}
+            </>
           ) : addMode === "batch" ? (
             <>
               <div className="flex gap-2">

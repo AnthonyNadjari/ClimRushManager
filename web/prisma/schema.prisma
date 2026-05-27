@@ -111,6 +111,8 @@ model Reservation {
   client    String
   machines  Int
   type      String
+  priceHt   Float?
+  model     String?
   createdAt DateTime  @default(now())
 }
 

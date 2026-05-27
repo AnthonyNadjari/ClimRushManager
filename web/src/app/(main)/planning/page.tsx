@@ -19,6 +19,14 @@ function toIsoDate(day: number) {
   return d.toISOString().slice(0, 10);
 }
 
+function frDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
 type ReservationRow = {
   id: string;
   date: string;
@@ -83,6 +91,9 @@ export default function PlanningPage() {
     endDate: toIsoDate(7),
     client: "",
     machines: "1",
+    machineIds: "",
+    model: "",
+    priceHt: "",
     type: "saison" as "hebdo" | "mensuel" | "saison",
     createDelivery: true,
     address: "",
@@ -111,6 +122,9 @@ export default function PlanningPage() {
         endDate: toIsoDate(7),
         client: "",
         machines: "1",
+        machineIds: "",
+        model: "",
+        priceHt: "",
         type: "saison",
         createDelivery: true,
         address: "",
@@ -127,9 +141,16 @@ export default function PlanningPage() {
 
   async function submitReserve(e: React.FormEvent) {
     e.preventDefault();
-    const n = Math.max(1, parseInt(form.machines, 10) || 1);
+    const machineIds = form.machineIds
+      .split(/[,;\s]+/)
+      .map((s) => s.replace(/^#/, "").trim())
+      .filter(Boolean);
+    const n = machineIds.length > 0
+      ? machineIds.length
+      : Math.max(1, parseInt(form.machines, 10) || 1);
     setSaving(true);
     try {
+      const priceHtParsed = parseFloat(form.priceHt.replace(",", "."));
       await apiJson("/api/reservations", {
         method: "POST",
         body: JSON.stringify({
@@ -138,6 +159,8 @@ export default function PlanningPage() {
           client: form.client.trim(),
           machines: n,
           type: form.type,
+          priceHt: Number.isFinite(priceHtParsed) ? priceHtParsed : null,
+          model: form.model.trim() || null,
         }),
       });
       if (form.createDelivery) {
@@ -149,8 +172,32 @@ export default function PlanningPage() {
             address: form.address.trim(),
             phone: form.phone.trim(),
             qty: n,
+            machineIds,
           }),
         });
+      }
+      if (machineIds.length > 0) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const start = new Date(form.date);
+        const inFuture = !isNaN(start.getTime()) && start > today;
+        const status = inFuture ? "RESA" : "LOUE";
+        const returnDate = form.endDate ? frDate(form.endDate) : null;
+        const clientName = form.client.trim() || null;
+        const modelTrim = form.model.trim();
+        await Promise.all(
+          machineIds.map((mid) =>
+            apiJson(`/api/machines/${encodeURIComponent(mid)}`, {
+              method: "PATCH",
+              body: JSON.stringify({
+                status,
+                clientName,
+                returnDate,
+                ...(modelTrim ? { model: modelTrim } : {}),
+              }),
+            }).catch(() => null),
+          ),
+        );
       }
       await apiJson("/api/activity", {
         method: "POST",
@@ -466,23 +513,74 @@ export default function PlanningPage() {
                   </label>
                   <label className="block">
                     <span className="text-xs font-medium text-zinc-500">
-                      Formule
+                      Numéros de machines (optionnel, séparés par virgule)
                     </span>
-                    <select
-                      value={form.type}
+                    <input
+                      type="text"
+                      value={form.machineIds}
                       onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          type: e.target.value as typeof form.type,
-                        }))
+                        setForm((f) => ({ ...f, machineIds: e.target.value }))
                       }
-                      className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-3 text-base outline-none focus:border-[var(--cr-blue)]"
-                    >
-                      <option value="hebdo">Hebdomadaire</option>
-                      <option value="mensuel">Mensuel</option>
-                      <option value="saison">Saison</option>
-                    </select>
+                      placeholder="ex. 12, 198, 201"
+                      className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                    />
+                    <span className="mt-1 block text-[11px] text-zinc-400">
+                      Si renseigné, ces machines sont marquées RESA/LOUÉ et
+                      reliées à la livraison.
+                    </span>
                   </label>
+                  <label className="block">
+                    <span className="text-xs font-medium text-zinc-500">
+                      Modèle
+                    </span>
+                    <input
+                      type="text"
+                      value={form.model}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, model: e.target.value }))
+                      }
+                      placeholder="ex. 12 000 BTU Monobloc"
+                      className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                    />
+                  </label>
+                  <div className="flex gap-2">
+                    <label className="flex-1">
+                      <span className="text-xs font-medium text-zinc-500">
+                        Abonnement
+                      </span>
+                      <select
+                        value={form.type}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            type: e.target.value as typeof form.type,
+                          }))
+                        }
+                        className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                      >
+                        <option value="hebdo">Hebdomadaire</option>
+                        <option value="mensuel">Mensuel</option>
+                        <option value="saison">Saison</option>
+                      </select>
+                    </label>
+                    <label className="flex-1">
+                      <span className="text-xs font-medium text-zinc-500">
+                        Tarif (€ HT)
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        inputMode="decimal"
+                        value={form.priceHt}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, priceHt: e.target.value }))
+                        }
+                        placeholder="ex. 599"
+                        className="mt-1 min-h-12 w-full rounded-xl border border-zinc-200 px-3 text-base outline-none focus:border-[var(--cr-blue)]"
+                      />
+                    </label>
+                  </div>
                   <label className="flex items-center gap-2 py-1">
                     <input
                       type="checkbox"

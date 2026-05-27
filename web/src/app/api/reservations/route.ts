@@ -34,6 +34,8 @@ export async function GET(req: Request) {
         client: r.client,
         machines: r.machines,
         type: r.type,
+        priceHt: r.priceHt,
+        model: r.model,
       })),
     );
   } catch (e) {
@@ -50,6 +52,8 @@ export async function POST(req: Request) {
       client?: string;
       machines?: number;
       type?: string;
+      priceHt?: number | null;
+      model?: string | null;
     };
     if (!body.date) {
       return NextResponse.json({ error: "date requise" }, { status: 400 });
@@ -69,6 +73,10 @@ export async function POST(req: Request) {
       }
       endDate = e;
     }
+    const priceHt =
+      body.priceHt != null && Number.isFinite(Number(body.priceHt))
+        ? Number(body.priceHt)
+        : null;
     const row = await prisma.reservation.create({
       data: {
         date: parsed,
@@ -76,6 +84,8 @@ export async function POST(req: Request) {
         client: body.client?.trim() ?? "",
         machines: Math.max(1, Number(body.machines) || 1),
         type: body.type ?? "saison",
+        priceHt,
+        model: body.model?.trim() || null,
       },
     });
     return NextResponse.json({
@@ -85,6 +95,8 @@ export async function POST(req: Request) {
       client: row.client,
       machines: row.machines,
       type: row.type,
+      priceHt: row.priceHt,
+      model: row.model,
     });
   } catch (e) {
     console.error(e);
